@@ -18,6 +18,7 @@ import {
   getJobFullOutput,
   getAttachCommand,
   Job,
+  getJobsJson,
 } from "./jobs.ts";
 import { loadFiles, formatPromptWithFiles, estimateTokens, loadCodebaseMap } from "./files.ts";
 import { isTmuxAvailable, listSessions } from "./tmux.ts";
@@ -33,7 +34,7 @@ Usage:
   codex-agent output <jobId>             Get full session output
   codex-agent attach <jobId>             Get tmux attach command
   codex-agent watch <jobId>              Stream output updates
-  codex-agent jobs                       List all jobs
+  codex-agent jobs [--json]              List all jobs
   codex-agent sessions                   List active tmux sessions
   codex-agent kill <jobId>               Kill running job
   codex-agent clean                      Clean old completed jobs
@@ -46,8 +47,10 @@ Options:
   -f, --file <glob>          Include files matching glob (can repeat)
   -d, --dir <path>           Working directory (default: cwd)
   --map                      Include codebase map if available
+  --one-shot                 Run in non-interactive exec mode
   --dry-run                  Show prompt without executing
   --strip-ansi               Remove ANSI escape codes from output (for capture/output)
+  --json                     Output JSON (jobs command only)
   -h, --help                 Show this help
 
 Examples:
@@ -80,8 +83,10 @@ interface Options {
   files: string[];
   dir: string;
   includeMap: boolean;
+  oneShot: boolean;
   dryRun: boolean;
   stripAnsi: boolean;
+  json: boolean;
 }
 
 function stripAnsiCodes(text: string): string {
@@ -108,8 +113,10 @@ function parseArgs(args: string[]): {
     files: [],
     dir: process.cwd(),
     includeMap: false,
+    oneShot: false,
     dryRun: false,
     stripAnsi: false,
+    json: false,
   };
 
   const positional: string[] = [];
@@ -147,10 +154,14 @@ function parseArgs(args: string[]): {
       options.dir = args[++i];
     } else if (arg === "--map") {
       options.includeMap = true;
+    } else if (arg === "--one-shot") {
+      options.oneShot = true;
     } else if (arg === "--dry-run") {
       options.dryRun = true;
     } else if (arg === "--strip-ansi") {
       options.stripAnsi = true;
+    } else if (arg === "--json") {
+      options.json = true;
     } else if (!arg.startsWith("-")) {
       if (!command) {
         command = arg;
@@ -279,6 +290,7 @@ async function main() {
           model: options.model,
           reasoningEffort: options.reasoning,
           sandbox: options.sandbox,
+          oneShot: options.oneShot,
           cwd: options.dir,
         });
 
@@ -289,8 +301,10 @@ async function main() {
         console.log("");
         console.log("Commands:");
         console.log(`  Capture output:  codex-agent capture ${job.id}`);
-        console.log(`  Send message:    codex-agent send ${job.id} "message"`);
-        console.log(`  Attach session:  tmux attach -t ${job.tmuxSession}`);
+        if (!job.oneShot) {
+          console.log(`  Send message:    codex-agent send ${job.id} "message"`);
+          console.log(`  Attach session:  tmux attach -t ${job.tmuxSession}`);
+        }
         break;
       }
 
@@ -453,6 +467,12 @@ async function main() {
       }
 
       case "jobs": {
+        if (options.json) {
+          const payload = getJobsJson();
+          console.log(JSON.stringify(payload, null, 2));
+          break;
+        }
+
         const jobs = listJobs();
         if (jobs.length === 0) {
           console.log("No jobs");
@@ -546,12 +566,15 @@ async function main() {
             model: options.model,
             reasoningEffort: options.reasoning,
             sandbox: options.sandbox,
+            oneShot: options.oneShot,
             cwd: options.dir,
           });
 
           console.log(`Job started: ${job.id}`);
           console.log(`tmux session: ${job.tmuxSession}`);
-          console.log(`Attach: tmux attach -t ${job.tmuxSession}`);
+          if (!job.oneShot) {
+            console.log(`Attach: tmux attach -t ${job.tmuxSession}`);
+          }
         } else {
           console.log(HELP);
         }

@@ -42,7 +42,7 @@ export function sessionExists(sessionName: string): boolean {
 }
 
 /**
- * Create a new tmux session running codex interactively
+ * Create a new tmux session running codex (interactive or one-shot)
  */
 export function createSession(options: {
   jobId: string;
@@ -50,30 +50,54 @@ export function createSession(options: {
   model: string;
   reasoningEffort: string;
   sandbox: string;
+  oneShot: boolean;
   cwd: string;
 }): { sessionName: string; success: boolean; error?: string } {
   const sessionName = getSessionName(options.jobId);
   const logFile = `${config.jobsDir}/${options.jobId}.log`;
 
-  // Build the codex command (interactive mode, not exec)
-  // We use the interactive TUI so we can send messages later
-  const codexArgs = [
-    `-c`, `model="${options.model}"`,
-    `-c`, `model_reasoning_effort="${options.reasoningEffort}"`,
-    `-c`, `skip_update_check=true`,
-    `-a`, `never`,
-    `-s`, options.sandbox,
-  ].join(" ");
-
   // Create prompt file to avoid shell escaping issues
   const promptFile = `${config.jobsDir}/${options.jobId}.prompt`;
+  const resultFile = `${config.jobsDir}/${options.jobId}.result`;
   const fs = require("fs");
   fs.writeFileSync(promptFile, options.prompt);
 
-  // Create tmux session with codex running
-  // Use script to capture all output, and keep shell alive after codex exits
-  // This allows us to capture the output even after completion
   try {
+    if (options.oneShot) {
+      // codex exec doesn't support -a (approval) flag - it's non-interactive
+      const execArgs = [
+        `-m`, options.model,
+        `-c`, `model_reasoning_effort="${options.reasoningEffort}"`,
+        `-c`, `check_for_update_on_startup=false`,
+        `-s`, options.sandbox,
+        `--output-last-message`, `"${resultFile}"`,
+      ].join(" ");
+
+      // Use bash -c with proper redirection
+      // script -q logs terminal output, prompt passed via file
+      const shellCmd = `script -q "${logFile}" bash -c 'codex exec ${execArgs} - < "${promptFile}"'`;
+
+      execSync(
+        `tmux new-session -d -s "${sessionName}" -c "${options.cwd}" "${shellCmd}"`,
+        { stdio: "pipe", cwd: options.cwd }
+      );
+
+      return { sessionName, success: true };
+    }
+
+    // Build the codex command (interactive mode, not exec)
+    // We use the interactive TUI so we can send messages later
+    const codexArgs = [
+      `-c`, `model="${options.model}"`,
+      `-c`, `model_reasoning_effort="${options.reasoningEffort}"`,
+      `-c`, `skip_update_check=true`,
+      `-a`, `never`,
+      `-s`, options.sandbox,
+    ].join(" ");
+
+    // Create tmux session with codex running
+    // Use script to capture all output, and keep shell alive after codex exits
+    // This allows us to capture the output even after completion
     // Create detached session that runs codex and stays open after it exits
     // Using script to log all terminal output
     const shellCmd = `script -q "${logFile}" codex ${codexArgs}; echo "\\n\\n[codex-agent: Session complete. Press Enter to close.]"; read`;

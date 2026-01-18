@@ -1,9 +1,10 @@
 // Job management for async codex agent execution with tmux
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync, existsSync } from "fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync } from "fs";
 import { join } from "path";
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
 import { randomBytes } from "crypto";
+import { extractSessionId, findSessionFile, parseSessionFile, type ParsedSessionData } from "./session-parser.ts";
 import {
   createSession,
   killSession,
@@ -23,6 +24,7 @@ export interface Job {
   model: string;
   reasoningEffort: ReasoningEffort;
   sandbox: SandboxMode;
+  oneShot?: boolean;
   cwd: string;
   createdAt: string;
   startedAt?: string;
@@ -74,6 +76,103 @@ export function listJobs(): Job[] {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return value.slice(0, maxLength);
+}
+
+function computeElapsedMs(job: Job): number {
+  const start = job.startedAt ?? job.createdAt;
+  const startMs = Date.parse(start);
+  const endMs = job.completedAt ? Date.parse(job.completedAt) : Date.now();
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 0;
+  return Math.max(0, endMs - startMs);
+}
+
+function loadSessionData(jobId: string): ParsedSessionData | null {
+  const logFile = join(config.jobsDir, `${jobId}.log`);
+  let logContent: string;
+
+  try {
+    logContent = readFileSync(logFile, "utf-8");
+  } catch {
+    return null;
+  }
+
+  const sessionId = extractSessionId(logContent);
+  if (!sessionId) return null;
+
+  const sessionFile = findSessionFile(sessionId);
+  if (!sessionFile) return null;
+
+  return parseSessionFile(sessionFile);
+}
+
+export type JobsJsonEntry = {
+  id: string;
+  status: Job["status"];
+  prompt: string;
+  model: string;
+  reasoning: ReasoningEffort;
+  cwd: string;
+  elapsed_ms: number;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  tokens: ParsedSessionData["tokens"] | null;
+  files_modified: ParsedSessionData["files_modified"] | null;
+  summary: string | null;
+};
+
+export type JobsJsonOutput = {
+  generated_at: string;
+  jobs: JobsJsonEntry[];
+};
+
+export function getJobsJson(): JobsJsonOutput {
+  const jobs = listJobs();
+  const enriched = jobs.map((job) => {
+    const refreshed = job.status === "running" ? refreshJobStatus(job.id) : null;
+    const effective = refreshed ?? job;
+    const elapsedMs = computeElapsedMs(effective);
+
+    let tokens: ParsedSessionData["tokens"] | null = null;
+    let filesModified: ParsedSessionData["files_modified"] | null = null;
+    let summary: string | null = null;
+
+    if (effective.status === "completed") {
+      const sessionData = loadSessionData(effective.id);
+      if (sessionData) {
+        tokens = sessionData.tokens;
+        filesModified = sessionData.files_modified;
+        summary = sessionData.summary ? truncateText(sessionData.summary, 500) : null;
+      }
+    }
+
+    return {
+      id: effective.id,
+      status: effective.status,
+      prompt: truncateText(effective.prompt, 100),
+      model: effective.model,
+      reasoning: effective.reasoningEffort,
+      cwd: effective.cwd,
+      elapsed_ms: elapsedMs,
+      created_at: effective.createdAt,
+      started_at: effective.startedAt ?? null,
+      completed_at: effective.completedAt ?? null,
+      tokens,
+      files_modified: filesModified,
+      summary,
+    };
+  });
+
+  return {
+    generated_at: new Date().toISOString(),
+    jobs: enriched,
+  };
+}
+
 export function deleteJob(jobId: string): boolean {
   const job = loadJob(jobId);
 
@@ -90,6 +189,12 @@ export function deleteJob(jobId: string): boolean {
     } catch {
       // Prompt file may not exist
     }
+    // Clean up one-shot result file if exists
+    try {
+      unlinkSync(join(config.jobsDir, `${jobId}.result`));
+    } catch {
+      // Result file may not exist
+    }
     return true;
   } catch {
     return false;
@@ -101,6 +206,7 @@ export interface StartJobOptions {
   model?: string;
   reasoningEffort?: ReasoningEffort;
   sandbox?: SandboxMode;
+  oneShot?: boolean;
   cwd?: string;
 }
 
@@ -117,6 +223,7 @@ export function startJob(options: StartJobOptions): Job {
     model: options.model || config.model,
     reasoningEffort: options.reasoningEffort || config.defaultReasoningEffort,
     sandbox: options.sandbox || config.defaultSandbox,
+    oneShot: options.oneShot ?? false,
     cwd,
     createdAt: new Date().toISOString(),
   };
@@ -130,6 +237,7 @@ export function startJob(options: StartJobOptions): Job {
     model: job.model,
     reasoningEffort: job.reasoningEffort,
     sandbox: job.sandbox,
+    oneShot: job.oneShot ?? false,
     cwd,
   });
 
@@ -165,7 +273,7 @@ export function killJob(jobId: string): boolean {
 
 export function sendToJob(jobId: string, message: string): boolean {
   const job = loadJob(jobId);
-  if (!job || !job.tmuxSession) return false;
+  if (!job || !job.tmuxSession || job.oneShot) return false;
 
   return sendMessage(job.tmuxSession, message);
 }
@@ -185,6 +293,20 @@ export function getJobOutput(jobId: string, lines?: number): string | null {
   if (job.tmuxSession && sessionExists(job.tmuxSession)) {
     const output = capturePane(job.tmuxSession, { lines });
     if (output) return output;
+  }
+
+  if (job.oneShot) {
+    const resultFile = join(config.jobsDir, `${jobId}.result`);
+    try {
+      const result = readFileSync(resultFile, "utf-8");
+      if (lines) {
+        const allLines = result.split("\n");
+        return allLines.slice(-lines).join("\n");
+      }
+      return result;
+    } catch {
+      // Result file may not exist yet
+    }
   }
 
   // Fall back to log file
@@ -209,6 +331,16 @@ export function getJobFullOutput(jobId: string): string | null {
   if (job.tmuxSession && sessionExists(job.tmuxSession)) {
     const output = captureFullHistory(job.tmuxSession);
     if (output) return output;
+  }
+
+  if (job.oneShot) {
+    const resultFile = join(config.jobsDir, `${jobId}.result`);
+    try {
+      const result = readFileSync(resultFile, "utf-8");
+      return result;
+    } catch {
+      // Result file may not exist yet
+    }
   }
 
   // Fall back to log file
@@ -252,12 +384,24 @@ export function refreshJobStatus(jobId: string): Job | null {
       // Session ended completely
       job.status = "completed";
       job.completedAt = new Date().toISOString();
-      // Try to get output from log file
+      const resultFile = join(config.jobsDir, `${jobId}.result`);
       const logFile = join(config.jobsDir, `${jobId}.log`);
-      try {
-        job.result = readFileSync(logFile, "utf-8");
-      } catch {
-        // No log file
+      if (job.oneShot) {
+        try {
+          job.result = readFileSync(resultFile, "utf-8");
+        } catch {
+          try {
+            job.result = readFileSync(logFile, "utf-8");
+          } catch {
+            // No result or log file
+          }
+        }
+      } else {
+        try {
+          job.result = readFileSync(logFile, "utf-8");
+        } catch {
+          // No log file
+        }
       }
       saveJob(job);
     } else {
