@@ -51,6 +51,8 @@ Options:
   --dry-run                  Show prompt without executing
   --strip-ansi               Remove ANSI escape codes from output (for capture/output)
   --json                     Output JSON (jobs command only)
+  --limit <n>                Limit jobs shown (jobs command only)
+  --all                      Show all jobs (jobs command only)
   -h, --help                 Show this help
 
 Examples:
@@ -87,6 +89,8 @@ interface Options {
   dryRun: boolean;
   stripAnsi: boolean;
   json: boolean;
+  jobsLimit: number | null;
+  jobsAll: boolean;
 }
 
 function stripAnsiCodes(text: string): string {
@@ -117,6 +121,8 @@ function parseArgs(args: string[]): {
     dryRun: false,
     stripAnsi: false,
     json: false,
+    jobsLimit: config.jobsListLimit,
+    jobsAll: false,
   };
 
   const positional: string[] = [];
@@ -162,6 +168,16 @@ function parseArgs(args: string[]): {
       options.stripAnsi = true;
     } else if (arg === "--json") {
       options.json = true;
+    } else if (arg === "--limit") {
+      const raw = args[++i];
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed < 1) {
+        console.error(`Invalid limit: ${raw}`);
+        process.exit(1);
+      }
+      options.jobsLimit = Math.floor(parsed);
+    } else if (arg === "--all") {
+      options.jobsAll = true;
     } else if (!arg.startsWith("-")) {
       if (!command) {
         command = arg;
@@ -200,6 +216,34 @@ function formatJobStatus(job: Job): string {
   const promptPreview = job.prompt.slice(0, 50) + (job.prompt.length > 50 ? "..." : "");
 
   return `${job.id}  ${status}  ${elapsed.padEnd(8)}  ${job.reasoningEffort.padEnd(6)}  ${promptPreview}`;
+}
+
+function refreshJobsForDisplay(jobs: Job[]): Job[] {
+  return jobs.map((job) => {
+    if (job.status !== "running") return job;
+    const refreshed = refreshJobStatus(job.id);
+    return refreshed ?? job;
+  });
+}
+
+function sortJobsRunningFirst(jobs: Job[]): Job[] {
+  const statusRank: Record<Job["status"], number> = {
+    running: 0,
+    pending: 1,
+    failed: 2,
+    completed: 3,
+  };
+
+  return [...jobs].sort((a, b) => {
+    const rankDiff = statusRank[a.status] - statusRank[b.status];
+    if (rankDiff !== 0) return rankDiff;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+}
+
+function applyJobsLimit<T>(jobs: T[], limit: number | null): T[] {
+  if (!limit || limit <= 0) return jobs;
+  return jobs.slice(0, limit);
 }
 
 async function main() {
@@ -467,21 +511,32 @@ async function main() {
       case "jobs": {
         if (options.json) {
           const payload = getJobsJson();
+          const limit = options.jobsAll ? null : options.jobsLimit;
+          const statusRank: Record<Job["status"], number> = {
+            running: 0,
+            pending: 1,
+            failed: 2,
+            completed: 3,
+          };
+          payload.jobs.sort((a, b) => {
+            const rankDiff = statusRank[a.status] - statusRank[b.status];
+            if (rankDiff !== 0) return rankDiff;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
+          payload.jobs = applyJobsLimit(payload.jobs, limit);
           console.log(JSON.stringify(payload, null, 2));
           break;
         }
 
-        const jobs = listJobs();
+        const limit = options.jobsAll ? null : options.jobsLimit;
+        const allJobs = refreshJobsForDisplay(listJobs());
+        const jobs = applyJobsLimit(sortJobsRunningFirst(allJobs), limit);
         if (jobs.length === 0) {
           console.log("No jobs");
         } else {
           console.log("ID        STATUS      ELAPSED   EFFORT  PROMPT");
           console.log("-".repeat(80));
           for (const job of jobs) {
-            // Refresh running jobs
-            if (job.status === "running") {
-              refreshJobStatus(job.id);
-            }
             console.log(formatJobStatus(job));
           }
         }

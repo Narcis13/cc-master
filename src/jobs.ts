@@ -1,6 +1,6 @@
 // Job management for async codex agent execution with tmux
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync } from "fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync, statSync } from "fs";
 import { join } from "path";
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
 import { randomBytes } from "crypto";
@@ -88,6 +88,35 @@ function computeElapsedMs(job: Job): number {
 
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 0;
   return Math.max(0, endMs - startMs);
+}
+
+function getLogMtimeMs(jobId: string): number | null {
+  const logFile = join(config.jobsDir, `${jobId}.log`);
+  try {
+    return statSync(logFile).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+function getLastActivityMs(job: Job): number | null {
+  const logMtime = getLogMtimeMs(job.id);
+  if (logMtime !== null) return logMtime;
+
+  const fallback = job.startedAt ?? job.createdAt;
+  const fallbackMs = Date.parse(fallback);
+  if (!Number.isFinite(fallbackMs)) return null;
+  return fallbackMs;
+}
+
+function isInactiveTimedOut(job: Job): boolean {
+  const timeoutMinutes = config.defaultTimeout;
+  if (!Number.isFinite(timeoutMinutes) || timeoutMinutes <= 0) return false;
+
+  const lastActivityMs = getLastActivityMs(job);
+  if (!lastActivityMs) return false;
+
+  return Date.now() - lastActivityMs > timeoutMinutes * 60 * 1000;
 }
 
 function loadSessionData(jobId: string): ParsedSessionData | null {
@@ -372,6 +401,12 @@ export function refreshJobStatus(jobId: string): Job | null {
         if (fullOutput) {
           job.result = fullOutput;
         }
+        saveJob(job);
+      } else if (isInactiveTimedOut(job)) {
+        killSession(job.tmuxSession);
+        job.status = "failed";
+        job.error = `Timed out after ${config.defaultTimeout} minutes of inactivity`;
+        job.completedAt = new Date().toISOString();
         saveJob(job);
       }
     }

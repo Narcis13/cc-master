@@ -15,8 +15,11 @@ export const config = {
   // Job storage directory
   jobsDir: `${process.env.HOME}/.codex-agent/jobs`,
 
-  // Default timeout in minutes
+  // Default inactivity timeout in minutes for running jobs
   defaultTimeout: 60,
+
+  // Default number of jobs to show in listings
+  jobsListLimit: 20,
 
   // tmux session prefix
   tmuxPrefix: "codex-agent",
