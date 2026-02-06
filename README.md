@@ -1,7 +1,7 @@
 # CC Orchestrator
 
 <p align="center">
-  <img src="codex-agent-hero.jpeg" alt="Claude orchestrating Claude Code agents" width="600">
+  <img src="cc-orchestra.png" alt="Claude orchestrating Claude Code agents" width="600">
 </p>
 
 Delegate tasks to Claude Code agents via tmux sessions. Designed for Claude Code orchestration.
