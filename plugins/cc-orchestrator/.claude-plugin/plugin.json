@@ -1,0 +1,8 @@
+{
+  "name": "cc-orchestrator",
+  "description": "Orchestrate Claude Code agents from Claude Code via tmux sessions",
+  "author": {
+    "name": "Narcis13",
+    "url": "https://github.com/Narcis13"
+  }
+}

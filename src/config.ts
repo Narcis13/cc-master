@@ -1,8 +1,8 @@
-// Configuration for codex-agent
+// Configuration for cc-agent
 
 export const config = {
   // Default model
-  model: "gpt-5.3-codex",
+  model: "opus",
 
   // Reasoning effort levels
   reasoningEfforts: ["low", "medium", "high", "xhigh"] as const,
@@ -13,7 +13,7 @@ export const config = {
   defaultSandbox: "workspace-write" as const,
 
   // Job storage directory
-  jobsDir: `${process.env.HOME}/.codex-agent/jobs`,
+  jobsDir: `${process.env.HOME}/.cc-agent/jobs`,
 
   // Default inactivity timeout in minutes for running jobs
   defaultTimeout: 60,
@@ -22,7 +22,7 @@ export const config = {
   jobsListLimit: 20,
 
   // tmux session prefix
-  tmuxPrefix: "codex-agent",
+  tmuxPrefix: "cc-agent",
 };
 
 export type ReasoningEffort = typeof config.reasoningEfforts[number];

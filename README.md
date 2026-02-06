@@ -1,10 +1,10 @@
-# Codex Orchestrator
+# CC Orchestrator
 
 <p align="center">
-  <img src="codex-agent-hero.jpeg" alt="Claude orchestrating Codex agents" width="600">
+  <img src="codex-agent-hero.jpeg" alt="Claude orchestrating Claude Code agents" width="600">
 </p>
 
-Delegate tasks to OpenAI Codex agents via tmux sessions. Designed for Claude Code orchestration.
+Delegate tasks to Claude Code agents via tmux sessions. Designed for Claude Code orchestration.
 
 Spawn parallel coding agents, monitor their progress, send follow-up messages mid-task, and capture results - all from Claude Code or the command line.
 
@@ -15,13 +15,13 @@ Spawn parallel coding agents, monitor their progress, send follow-up messages mi
 **Step 1:** Add the marketplace:
 
 ```
-/plugin marketplace add kingbootoshi/codex-orchestrator
+/plugin marketplace add Narcis13/cc-master
 ```
 
 **Step 2:** Install the plugin:
 
 ```
-/plugin install codex-orchestrator
+/plugin install cc-orchestrator
 ```
 
 **Step 3:** Restart Claude Code (may be required for the skill to load)
@@ -29,38 +29,37 @@ Spawn parallel coding agents, monitor their progress, send follow-up messages mi
 **Step 4:** Install the CLI and dependencies:
 
 ```
-/codex-orchestrator init
+/cc-orchestrator init
 ```
 
-Or say "set up codex orchestrator" and Claude will walk you through it.
+Or say "set up cc orchestrator" and Claude will walk you through it.
 
 **Step 5:** Use it - just ask Claude to do things. The skill activates automatically for coding tasks.
 
 ### Manual / CLI-Only Install
 
-If you just want the `codex-agent` CLI without the Claude Code plugin:
+If you just want the `cc-agent` CLI without the Claude Code plugin:
 
 ```bash
 # Prerequisites
-brew install tmux              # macOS (or apt/pacman/dnf for Linux)
-npm install -g @openai/codex   # OpenAI Codex CLI
-codex --login                  # Authenticate with OpenAI
+brew install tmux                          # macOS (or apt/pacman/dnf for Linux)
+npm install -g @anthropic-ai/claude-code   # Claude Code CLI
 
 # Install
-git clone https://github.com/kingbootoshi/codex-orchestrator.git ~/.codex-orchestrator
-cd ~/.codex-orchestrator && bun install
+git clone https://github.com/Narcis13/cc-master.git ~/.cc-orchestrator
+cd ~/.cc-orchestrator && bun install
 
 # Add to PATH (add this line to ~/.bashrc or ~/.zshrc)
-export PATH="$HOME/.codex-orchestrator/bin:$PATH"
+export PATH="$HOME/.cc-orchestrator/bin:$PATH"
 
 # Verify
-codex-agent health
+cc-agent health
 ```
 
 Or use the automated installer:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/kingbootoshi/codex-orchestrator/main/plugins/codex-orchestrator/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Narcis13/cc-master/main/plugins/cc-orchestrator/scripts/install.sh)
 ```
 
 ### Requirements
@@ -69,21 +68,21 @@ bash <(curl -fsSL https://raw.githubusercontent.com/kingbootoshi/codex-orchestra
 |-----------|---------|---------|
 | [tmux](https://github.com/tmux/tmux) | Terminal multiplexer - agents run in tmux sessions | `brew install tmux` |
 | [Bun](https://bun.sh) | JavaScript runtime - runs the CLI | `curl -fsSL https://bun.sh/install \| bash` |
-| [Codex CLI](https://github.com/openai/codex) | OpenAI's coding agent - the thing being orchestrated | `npm install -g @openai/codex` |
-| OpenAI account | API access for Codex agents | `codex --login` |
+| [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) | Anthropic's coding agent - the thing being orchestrated | `npm install -g @anthropic-ai/claude-code` |
+| Anthropic API key | API access for Claude Code agents | Set `ANTHROPIC_API_KEY` env var |
 
 **Platform support:** macOS and Linux. Windows users should use WSL.
 
 ## Why?
 
-When you're working with Claude Code and need parallel execution, investigation tasks, or long-running operations - spawn Codex agents in the background. They run in tmux sessions so you can:
+When you're working with Claude Code and need parallel execution, investigation tasks, or long-running operations - spawn Claude Code agents in the background. They run in tmux sessions so you can:
 
 - **Watch live** - Attach to any session and see exactly what the agent is doing
 - **Talk back** - Send follow-up messages mid-task to redirect or add context
 - **Run in parallel** - Spawn multiple agents investigating different parts of a codebase
 - **Capture results** - Grab output programmatically when agents finish
 
-Claude handles the strategic thinking (planning, synthesis, communication). Codex handles the deep coding work (research, implementation, review, testing). Together they cover both the orchestration and execution layers.
+Claude handles the strategic thinking (planning, synthesis, communication). Claude Code agents handle the deep coding work (research, implementation, review, testing). Together they cover both the orchestration and execution layers.
 
 ## Codebase Map (Recommended)
 
@@ -91,30 +90,30 @@ The `--map` flag injects `docs/CODEBASE_MAP.md` into every agent's prompt, givin
 
 Without a map, agents waste time exploring and guessing at structure. With a map, they know exactly where things are and start working immediately.
 
-The map is generated by [Cartographer](https://github.com/kingbootoshi/cartographer), a companion Claude Code plugin:
+The map is generated by [Cartographer](https://github.com/Narcis13/cc-master), a companion Claude Code plugin:
 
 ```
-/plugin marketplace add kingbootoshi/cartographer
+/plugin marketplace add Narcis13/cc-master
 /plugin install cartographer
 /cartographer
 ```
 
-This creates `docs/CODEBASE_MAP.md`. After that, every `codex-agent start ... --map` command gives agents full architectural context. **Generate a codebase map before using codex-orchestrator on a new project** - it's the difference between agents that fumble around and agents that execute with precision.
+This creates `docs/CODEBASE_MAP.md`. After that, every `cc-agent start ... --map` command gives agents full architectural context. **Generate a codebase map before using cc-orchestrator on a new project** - it's the difference between agents that fumble around and agents that execute with precision.
 
 ## Quick Start
 
 ```bash
 # Start an agent
-codex-agent start "Review this codebase for security vulnerabilities" --map
+cc-agent start "Review this codebase for security vulnerabilities" --map
 
 # Check status with structured JSON
-codex-agent jobs --json
+cc-agent jobs --json
 
 # See what it's doing
-codex-agent capture <jobId>
+cc-agent capture <jobId>
 
 # Redirect the agent mid-task
-codex-agent send <jobId> "Focus on the authentication module instead"
+cc-agent send <jobId> "Focus on the authentication module instead"
 ```
 
 ## Commands
@@ -133,14 +132,14 @@ codex-agent send <jobId> "Focus on the authentication module instead"
 | `sessions` | List active tmux sessions |
 | `kill <id>` | Terminate a running job (last resort) |
 | `clean` | Remove jobs older than 7 days |
-| `health` | Check tmux and codex availability |
+| `health` | Check tmux and claude availability |
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `-r, --reasoning <level>` | Reasoning effort: `low`, `medium`, `high`, `xhigh` |
-| `-m, --model <model>` | Model name (default: gpt-5.3-codex) |
+| `-r, --reasoning <level>` | Reasoning effort: `low`, `medium`, `high`, `xhigh` (low=sonnet, else=opus) |
+| `-m, --model <model>` | Model name (overrides reasoning-based selection) |
 | `-s, --sandbox <mode>` | `read-only`, `workspace-write`, `danger-full-access` |
 | `-f, --file <glob>` | Include files matching glob (repeatable) |
 | `-d, --dir <path>` | Working directory |
@@ -175,25 +174,25 @@ Get structured job data with `jobs --json`:
 
 ```bash
 # Spawn multiple agents to investigate different areas
-codex-agent start "Audit authentication flow" -r high --map -s read-only
-codex-agent start "Review database queries for N+1 issues" -r high --map -s read-only
-codex-agent start "Check for XSS vulnerabilities in templates" -r high --map -s read-only
+cc-agent start "Audit authentication flow" -r high --map -s read-only
+cc-agent start "Review database queries for N+1 issues" -r high --map -s read-only
+cc-agent start "Check for XSS vulnerabilities in templates" -r high --map -s read-only
 
 # Check on all of them
-codex-agent jobs --json
+cc-agent jobs --json
 ```
 
 ### Redirecting an Agent
 
 ```bash
 # Agent going down wrong path? Redirect it
-codex-agent send abc123 "Stop - focus on the auth module instead"
+cc-agent send abc123 "Stop - focus on the auth module instead"
 
 # Agent needs info? Send it
-codex-agent send abc123 "The dependency is installed. Continue with typecheck."
+cc-agent send abc123 "The dependency is installed. Continue with typecheck."
 
 # Attach for direct interaction
-tmux attach -t codex-agent-abc123
+tmux attach -t cc-agent-abc123
 # (Ctrl+B, D to detach)
 ```
 
@@ -201,28 +200,28 @@ tmux attach -t codex-agent-abc123
 
 ```bash
 # Include specific files in the prompt
-codex-agent start "Review these files for bugs" -f "src/auth/**/*.ts" -f "src/api/**/*.ts"
+cc-agent start "Review these files for bugs" -f "src/auth/**/*.ts" -f "src/api/**/*.ts"
 
 # Include codebase map for orientation
-codex-agent start "Understand the architecture" --map -r high
+cc-agent start "Understand the architecture" --map -r high
 ```
 
 ## How It Works
 
-1. You run `codex-agent start "task"`
+1. You run `cc-agent start "task"`
 2. It creates a detached tmux session
-3. It launches the Codex CLI inside that session
-4. It sends your prompt to Codex
+3. It launches the Claude Code CLI inside that session with `--dangerously-skip-permissions`
+4. It sends your prompt to Claude Code
 5. It returns immediately with the job ID
-6. Codex works in the background
+6. Claude Code works in the background
 7. You check with `jobs --json`, `capture`, `output`, or `attach`
 8. You redirect with `send` if the agent needs course correction
 
-All session output is logged via the `script` command, so results are available even after the session ends. Session metadata is parsed from Codex's JSONL files (`~/.codex/sessions/`) to extract tokens, file modifications, and summaries.
+All session output is logged via the `script` command, so results are available even after the session ends.
 
 ## The Claude Code Plugin
 
-When installed as a Claude Code plugin, the **codex-orchestrator skill** teaches Claude how to use the CLI automatically. Claude becomes the orchestrator:
+When installed as a Claude Code plugin, the **cc-orchestrator skill** teaches Claude how to use the CLI automatically. Claude becomes the orchestrator:
 
 - Breaks your requests into agent-sized tasks
 - Spawns agents with the right flags (read-only for research, workspace-write for implementation)
@@ -234,12 +233,12 @@ This means you can just describe what you want, and Claude handles the delegatio
 
 The skill follows a pipeline: **Ideation -> Research -> Synthesis -> PRD -> Implementation -> Review -> Testing**. Each stage uses the appropriate agent configuration.
 
-See [plugins/codex-orchestrator/README.md](plugins/codex-orchestrator/README.md) for full plugin documentation.
+See [plugins/cc-orchestrator/README.md](plugins/cc-orchestrator/README.md) for full plugin documentation.
 
 ## Job Storage
 
 ```
-~/.codex-agent/jobs/
+~/.cc-agent/jobs/
   <jobId>.json    # Job metadata
   <jobId>.prompt  # Original prompt
   <jobId>.log     # Full terminal output
@@ -247,13 +246,13 @@ See [plugins/codex-orchestrator/README.md](plugins/codex-orchestrator/README.md)
 
 ## Tips
 
-- Use `codex-agent send` to redirect agents - don't kill and respawn
+- Use `cc-agent send` to redirect agents - don't kill and respawn
 - Use `jobs --json` to get structured data (tokens, files, summary) in one call
 - Use `--strip-ansi` when capturing output programmatically
 - Use `-r xhigh` for complex tasks that need deep reasoning
 - Use `--map` to give agents codebase context (requires docs/CODEBASE_MAP.md)
 - Use `-s read-only` for research tasks that shouldn't modify files
-- Kill stuck jobs with `codex-agent kill <id>` only as a last resort
+- Kill stuck jobs with `cc-agent kill <id>` only as a last resort
 
 ## License
 

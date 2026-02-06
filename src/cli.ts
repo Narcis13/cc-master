@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-// Codex Agent CLI - Delegate tasks to GPT Codex agents with tmux integration
+// CC Agent CLI - Delegate tasks to Claude Code agents with tmux integration
 // Designed for Claude Code orchestration with bidirectional communication
 
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
@@ -24,25 +24,25 @@ import { loadFiles, formatPromptWithFiles, estimateTokens, loadCodebaseMap } fro
 import { isTmuxAvailable, listSessions } from "./tmux.ts";
 
 const HELP = `
-Codex Agent - Delegate tasks to GPT Codex agents (tmux-based)
+CC Agent - Delegate tasks to Claude Code agents (tmux-based)
 
 Usage:
-  codex-agent start "prompt" [options]   Start agent in tmux session
-  codex-agent status <jobId>             Check job status
-  codex-agent send <jobId> "message"     Send message to running agent
-  codex-agent capture <jobId> [lines]    Capture recent output (default: 50 lines)
-  codex-agent output <jobId>             Get full session output
-  codex-agent attach <jobId>             Get tmux attach command
-  codex-agent watch <jobId>              Stream output updates
-  codex-agent jobs [--json]              List all jobs
-  codex-agent sessions                   List active tmux sessions
-  codex-agent kill <jobId>               Kill running job
-  codex-agent clean                      Clean old completed jobs
-  codex-agent health                     Check tmux and codex availability
+  cc-agent start "prompt" [options]   Start agent in tmux session
+  cc-agent status <jobId>             Check job status
+  cc-agent send <jobId> "message"     Send message to running agent
+  cc-agent capture <jobId> [lines]    Capture recent output (default: 50 lines)
+  cc-agent output <jobId>             Get full session output
+  cc-agent attach <jobId>             Get tmux attach command
+  cc-agent watch <jobId>              Stream output updates
+  cc-agent jobs [--json]              List all jobs
+  cc-agent sessions                   List active tmux sessions
+  cc-agent kill <jobId>               Kill running job
+  cc-agent clean                      Clean old completed jobs
+  cc-agent health                     Check tmux and claude code availability
 
 Options:
   -r, --reasoning <level>    Reasoning effort: low, medium, high, xhigh (default: xhigh)
-  -m, --model <model>        Model name (default: gpt-5.3-codex)
+  -m, --model <model>        Model name (default: opus)
   -s, --sandbox <mode>       Sandbox: read-only, workspace-write, danger-full-access
   -f, --file <glob>          Include files matching glob (can repeat)
   -d, --dir <path>           Working directory (default: cwd)
@@ -57,19 +57,19 @@ Options:
 
 Examples:
   # Start an agent
-  codex-agent start "Review this code for security issues" -f "src/**/*.ts"
+  cc-agent start "Review this code for security issues" -f "src/**/*.ts"
 
   # Check on it
-  codex-agent capture abc123
+  cc-agent capture abc123
 
   # Send additional context
-  codex-agent send abc123 "Also check the auth module"
+  cc-agent send abc123 "Also check the auth module"
 
   # Attach to watch interactively
-  tmux attach -t codex-agent-abc123
+  tmux attach -t cc-agent-abc123
 
   # Or use the attach command
-  codex-agent attach abc123
+  cc-agent attach abc123
 
 Bidirectional Communication:
   - Use 'send' to give agents additional instructions mid-task
@@ -78,9 +78,20 @@ Bidirectional Communication:
   - Press Ctrl+C in tmux to interrupt, type to continue conversation
 `;
 
+/**
+ * Resolve model based on reasoning effort.
+ * -r low -> sonnet, everything else -> opus.
+ * Explicit -m flag takes priority.
+ */
+function resolveModel(reasoning: ReasoningEffort, explicitModel: string | null): string {
+  if (explicitModel) return explicitModel;
+  return reasoning === "low" ? "sonnet" : "opus";
+}
+
 interface Options {
   reasoning: ReasoningEffort;
   model: string;
+  explicitModel: string | null;
   sandbox: SandboxMode;
   files: string[];
   dir: string;
@@ -113,6 +124,7 @@ function parseArgs(args: string[]): {
   const options: Options = {
     reasoning: config.defaultReasoningEffort,
     model: config.model,
+    explicitModel: null,
     sandbox: config.defaultSandbox,
     files: [],
     dir: process.cwd(),
@@ -144,7 +156,8 @@ function parseArgs(args: string[]): {
         process.exit(1);
       }
     } else if (arg === "-m" || arg === "--model") {
-      options.model = args[++i];
+      options.explicitModel = args[++i];
+      options.model = options.explicitModel;
     } else if (arg === "-s" || arg === "--sandbox") {
       const mode = args[++i] as SandboxMode;
       if (config.sandboxModes.includes(mode)) {
@@ -186,6 +199,9 @@ function parseArgs(args: string[]): {
       }
     }
   }
+
+  // Resolve model from reasoning effort if no explicit -m flag
+  options.model = resolveModel(options.reasoning, options.explicitModel);
 
   return { command, positional, options };
 }
@@ -267,14 +283,14 @@ async function main() {
         }
         console.log("tmux: OK");
 
-        // Check codex
+        // Check claude
         const { execSync } = await import("child_process");
         try {
-          const version = execSync("codex --version", { encoding: "utf-8" }).trim();
-          console.log(`codex: ${version}`);
+          const version = execSync("claude --version", { encoding: "utf-8" }).trim();
+          console.log(`claude: ${version}`);
         } catch {
-          console.error("codex CLI not found");
-          console.error("Install with: npm install -g @openai/codex");
+          console.error("Claude Code CLI not found");
+          console.error("Install with: npm install -g @anthropic-ai/claude-code");
           process.exit(1);
         }
 
@@ -344,8 +360,8 @@ async function main() {
         console.log(`tmux session: ${job.tmuxSession}`);
         console.log("");
         console.log("Commands:");
-        console.log(`  Capture output:  codex-agent capture ${job.id}`);
-        console.log(`  Send message:    codex-agent send ${job.id} "message"`);
+        console.log(`  Capture output:  cc-agent capture ${job.id}`);
+        console.log(`  Send message:    cc-agent send ${job.id} "message"`);
         console.log(`  Attach session:  tmux attach -t ${job.tmuxSession}`);
         break;
       }
@@ -384,7 +400,7 @@ async function main() {
 
       case "send": {
         if (positional.length < 2) {
-          console.error("Error: Usage: codex-agent send <jobId> \"message\"");
+          console.error("Error: Usage: cc-agent send <jobId> \"message\"");
           process.exit(1);
         }
 
@@ -546,7 +562,7 @@ async function main() {
       case "sessions": {
         const sessions = listSessions();
         if (sessions.length === 0) {
-          console.log("No active codex-agent sessions");
+          console.log("No active cc-agent sessions");
         } else {
           console.log("SESSION NAME                    ATTACHED  CREATED");
           console.log("-".repeat(60));

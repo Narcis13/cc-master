@@ -1,4 +1,4 @@
-// tmux helper functions for codex-agent
+// tmux helper functions for cc-agent
 
 import { execSync, spawnSync } from "child_process";
 import { config } from "./config.ts";
@@ -42,7 +42,7 @@ export function sessionExists(sessionName: string): boolean {
 }
 
 /**
- * Create a new tmux session running codex (interactive mode)
+ * Create a new tmux session running claude (interactive mode)
  */
 export function createSession(options: {
   jobId: string;
@@ -61,36 +61,31 @@ export function createSession(options: {
   fs.writeFileSync(promptFile, options.prompt);
 
   try {
-    // Build the codex command (interactive mode)
+    // Build the claude command (interactive mode)
     // We use the interactive TUI so we can send messages later
-    const codexArgs = [
-      `-c`, `model="${options.model}"`,
-      `-c`, `model_reasoning_effort="${options.reasoningEffort}"`,
-      `-c`, `skip_update_check=true`,
-      `-a`, `never`,
-      `-s`, options.sandbox,
-    ].join(" ");
+    const claudeArgs = [
+      `--dangerously-skip-permissions`,
+      `--model`, options.model,
+    ];
 
-    // Create tmux session with codex running
-    // Use script to capture all output, and keep shell alive after codex exits
+    // Map sandbox to tool restrictions for read-only mode
+    if (options.sandbox === "read-only") {
+      claudeArgs.push(`--tools`, `"Read,Glob,Grep,LS,WebFetch,WebSearch"`);
+    }
+
+    // Create tmux session with claude running
+    // Use script to capture all output, and keep shell alive after claude exits
     // This allows us to capture the output even after completion
-    // Create detached session that runs codex and stays open after it exits
+    // Create detached session that runs claude and stays open after it exits
     // Using script to log all terminal output
-    const shellCmd = `script -q "${logFile}" codex ${codexArgs}; echo "\\n\\n[codex-agent: Session complete. Press Enter to close.]"; read`;
+    const shellCmd = `script -q "${logFile}" claude ${claudeArgs.join(" ")}; echo "\\n\\n[cc-agent: Session complete. Press Enter to close.]"; read`;
 
     execSync(
       `tmux new-session -d -s "${sessionName}" -c "${options.cwd}" '${shellCmd}'`,
       { stdio: "pipe", cwd: options.cwd }
     );
 
-    // Give codex a moment to initialize and show update prompt if any
-    spawnSync("sleep", ["1"]);
-
-    // Skip update prompt if it appears by sending "3" (skip until next version)
-    // Then Enter to dismiss any remaining prompts
-    execSync(`tmux send-keys -t "${sessionName}" "3"`, { stdio: "pipe" });
-    spawnSync("sleep", ["0.5"]);
-    execSync(`tmux send-keys -t "${sessionName}" Enter`, { stdio: "pipe" });
+    // Give claude a moment to initialize
     spawnSync("sleep", ["1"]);
 
     // Send the prompt (read from file to handle complex prompts)
@@ -130,7 +125,7 @@ export function createSession(options: {
 }
 
 /**
- * Send a message to a running codex session
+ * Send a message to a running claude session
  */
 export function sendMessage(sessionName: string, message: string): boolean {
   if (!sessionExists(sessionName)) {
@@ -237,7 +232,7 @@ export function killSession(sessionName: string): boolean {
 }
 
 /**
- * List all codex-agent sessions
+ * List all cc-agent sessions
  */
 export function listSessions(): TmuxSession[] {
   try {
@@ -272,7 +267,7 @@ export function getAttachCommand(sessionName: string): string {
 }
 
 /**
- * Check if the session's codex process is still running
+ * Check if the session's claude process is still running
  */
 export function isSessionActive(sessionName: string): boolean {
   if (!sessionExists(sessionName)) {

@@ -17,11 +17,11 @@ export type ParsedSessionData = {
 
 const SESSION_EXTENSIONS = new Set<string>([".jsonl", ".json"]);
 
-function getCodexHome(): string | null {
-  const configured = process.env.CODEX_HOME;
+function getClaudeHome(): string | null {
+  const configured = process.env.CLAUDE_HOME;
   if (configured && configured.trim()) return configured;
   if (!process.env.HOME) return null;
-  return join(process.env.HOME, ".codex");
+  return join(process.env.HOME, ".claude");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -216,10 +216,10 @@ export function extractSessionId(logContent: string): string | null {
 
 export function findSessionFile(sessionId: string): string | null {
   if (!sessionId.trim()) return null;
-  const codexHome = getCodexHome();
-  if (!codexHome) return null;
+  const claudeHome = getClaudeHome();
+  if (!claudeHome) return null;
 
-  const sessionsDir = join(codexHome, "sessions");
+  const sessionsDir = join(claudeHome, "projects");
   if (!existsSync(sessionsDir)) return null;
 
   const stack: string[] = [sessionsDir];

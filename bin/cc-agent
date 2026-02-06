@@ -1,5 +1,5 @@
 #!/bin/bash
-# Codex Agent - Delegate tasks to GPT Codex agents
+# CC Agent - Delegate tasks to Claude Code agents
 SOURCE="${BASH_SOURCE[0]}"
 while [ -L "$SOURCE" ]; do
   DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"

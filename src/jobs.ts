@@ -1,4 +1,4 @@
-// Job management for async codex agent execution with tmux
+// Job management for async claude agent execution with tmux
 
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync, statSync } from "fs";
 import { join } from "path";
@@ -253,7 +253,7 @@ export function startJob(options: StartJobOptions): Job {
 
   saveJob(job);
 
-  // Create tmux session with codex
+  // Create tmux session with claude
   const result = createSession({
     jobId,
     prompt: options.prompt,
@@ -390,10 +390,10 @@ export function refreshJobStatus(jobId: string): Job | null {
       }
       saveJob(job);
     } else {
-      // Session exists - check if codex is still running
-      // Look for the "[codex-agent: Session complete" marker in output
+      // Session exists - check if claude is still running
+      // Look for the "[cc-agent: Session complete" marker in output
       const output = capturePane(job.tmuxSession, { lines: 20 });
-      if (output && output.includes("[codex-agent: Session complete")) {
+      if (output && output.includes("[cc-agent: Session complete")) {
         job.status = "completed";
         job.completedAt = new Date().toISOString();
         // Capture full output

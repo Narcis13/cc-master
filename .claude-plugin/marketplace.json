@@ -1,21 +1,21 @@
 {
-  "name": "codex-orchestrator-marketplace",
+  "name": "cc-orchestrator-marketplace",
   "owner": {
-    "name": "Bootoshi",
-    "url": "https://github.com/kingbootoshi"
+    "name": "Narcis13",
+    "url": "https://github.com/Narcis13"
   },
   "metadata": {
-    "description": "Delegate tasks to OpenAI Codex agents via tmux sessions. Designed for Claude Code orchestration.",
+    "description": "Delegate tasks to Claude Code agents via tmux sessions. Designed for Claude Code orchestration.",
     "version": "1.0.0"
   },
   "plugins": [
     {
-      "name": "codex-orchestrator",
-      "source": "./plugins/codex-orchestrator",
-      "description": "Orchestrate OpenAI Codex agents from Claude Code. Spawn parallel agents, monitor progress, send follow-up messages, and capture results - all through tmux sessions.",
+      "name": "cc-orchestrator",
+      "source": "./plugins/cc-orchestrator",
+      "description": "Orchestrate Claude Code agents from Claude Code. Spawn parallel agents, monitor progress, send follow-up messages, and capture results - all through tmux sessions.",
       "version": "1.0.0",
       "category": "developer tools",
-      "keywords": ["codex", "orchestration", "agents", "tmux", "parallel", "delegation"]
+      "keywords": ["claude", "orchestration", "agents", "tmux", "parallel", "delegation"]
     }
   ]
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Codex Orchestrator - Installation Script
-# Installs the codex-agent CLI and its dependencies.
+# CC Orchestrator - Installation Script
+# Installs the cc-agent CLI and its dependencies.
 # Uses only official package managers. No third-party scripts.
 
 set -e
@@ -11,8 +11,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-INSTALL_DIR="${CODEX_ORCHESTRATOR_HOME:-$HOME/.codex-orchestrator}"
-REPO_URL="https://github.com/kingbootoshi/codex-orchestrator.git"
+INSTALL_DIR="${CC_ORCHESTRATOR_HOME:-$HOME/.cc-orchestrator}"
+REPO_URL="https://github.com/Narcis13/cc-master.git"
 
 info() { echo -e "${BLUE}[info]${NC} $1"; }
 success() { echo -e "${GREEN}[ok]${NC} $1"; }
@@ -137,38 +137,37 @@ check_bun() {
 }
 
 # -------------------------------------------------------------------
-# Check for OpenAI Codex CLI
+# Check for Claude Code CLI
 # -------------------------------------------------------------------
-check_codex() {
-  if command -v codex &>/dev/null; then
-    success "codex CLI: found"
+check_claude_code() {
+  if command -v claude &>/dev/null; then
+    success "Claude Code CLI: found"
     return 0
   fi
 
-  warn "OpenAI Codex CLI not found."
+  warn "Claude Code CLI not found."
   echo ""
-  echo "The Codex CLI is the coding agent that codex-orchestrator controls."
+  echo "The Claude Code CLI is the coding agent that cc-orchestrator controls."
   echo ""
   echo "Install it with npm:"
-  echo "  npm install -g @openai/codex"
+  echo "  npm install -g @anthropic-ai/claude-code"
   echo ""
-  echo "Then authenticate with your OpenAI account:"
-  echo "  codex --login"
+  echo "Then authenticate with your Anthropic API key."
   echo ""
-  echo "More info: https://github.com/openai/codex"
+  echo "More info: https://docs.anthropic.com/en/docs/claude-code"
   echo ""
 
   read -p "Do you want to install it now with npm? [y/N] " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     if command -v npm &>/dev/null; then
-      npm install -g @openai/codex
-      if command -v codex &>/dev/null; then
-        success "codex CLI installed"
+      npm install -g @anthropic-ai/claude-code
+      if command -v claude &>/dev/null; then
+        success "Claude Code CLI installed"
         echo ""
-        warn "You still need to authenticate: codex --login"
+        warn "You still need to set your ANTHROPIC_API_KEY environment variable"
       else
-        error "Codex CLI installation failed."
+        error "Claude Code CLI installation failed."
         exit 1
       fi
     else
@@ -176,12 +175,12 @@ check_codex() {
       exit 1
     fi
   else
-    warn "Skipping Codex CLI install. You'll need it before using codex-agent."
+    warn "Skipping Claude Code CLI install. You'll need it before using cc-agent."
   fi
 }
 
 # -------------------------------------------------------------------
-# Install codex-orchestrator
+# Install cc-orchestrator
 # -------------------------------------------------------------------
 install_orchestrator() {
   if [ -d "$INSTALL_DIR" ]; then
@@ -189,7 +188,7 @@ install_orchestrator() {
     cd "$INSTALL_DIR"
     git pull --ff-only origin main
   else
-    info "Cloning codex-orchestrator to $INSTALL_DIR"
+    info "Cloning cc-orchestrator to $INSTALL_DIR"
     git clone "$REPO_URL" "$INSTALL_DIR"
     cd "$INSTALL_DIR"
   fi
@@ -201,8 +200,8 @@ install_orchestrator() {
   local BIN_DIR="$INSTALL_DIR/bin"
   local PATH_LINE="export PATH=\"$BIN_DIR:\$PATH\""
 
-  if command -v codex-agent &>/dev/null; then
-    success "codex-agent already on PATH"
+  if command -v cc-agent &>/dev/null; then
+    success "cc-agent already on PATH"
   else
     # Detect shell profile
     local SHELL_PROFILE=""
@@ -216,11 +215,11 @@ install_orchestrator() {
 
     if [ -n "$SHELL_PROFILE" ]; then
       # Check if already in profile
-      if grep -q "codex-orchestrator/bin" "$SHELL_PROFILE" 2>/dev/null; then
+      if grep -q "cc-orchestrator/bin" "$SHELL_PROFILE" 2>/dev/null; then
         info "PATH entry already in $SHELL_PROFILE"
       else
         echo "" >> "$SHELL_PROFILE"
-        echo "# codex-orchestrator" >> "$SHELL_PROFILE"
+        echo "# cc-orchestrator" >> "$SHELL_PROFILE"
         echo "$PATH_LINE" >> "$SHELL_PROFILE"
         success "Added to PATH in $SHELL_PROFILE"
       fi
@@ -244,12 +243,12 @@ verify() {
   info "Running health check..."
   echo ""
 
-  if command -v codex-agent &>/dev/null; then
-    codex-agent health
-  elif [ -f "$INSTALL_DIR/bin/codex-agent" ]; then
-    "$INSTALL_DIR/bin/codex-agent" health
+  if command -v cc-agent &>/dev/null; then
+    cc-agent health
+  elif [ -f "$INSTALL_DIR/bin/cc-agent" ]; then
+    "$INSTALL_DIR/bin/cc-agent" health
   else
-    error "codex-agent binary not found after installation."
+    error "cc-agent binary not found after installation."
     exit 1
   fi
 
@@ -257,15 +256,14 @@ verify() {
   success "Installation complete!"
   echo ""
   echo "Quick start:"
-  echo "  codex-agent start \"Review this codebase for issues\" --map"
-  echo "  codex-agent jobs --json"
-  echo "  codex-agent capture <jobId>"
+  echo "  cc-agent start \"Review this codebase for issues\" --map"
+  echo "  cc-agent jobs --json"
+  echo "  cc-agent capture <jobId>"
   echo ""
 
-  if ! command -v codex &>/dev/null; then
-    warn "Reminder: Install the Codex CLI before using codex-agent:"
-    echo "  npm install -g @openai/codex"
-    echo "  codex --login"
+  if ! command -v claude &>/dev/null; then
+    warn "Reminder: Install the Claude Code CLI before using cc-agent:"
+    echo "  npm install -g @anthropic-ai/claude-code"
   fi
 }
 
@@ -275,7 +273,7 @@ verify() {
 main() {
   echo ""
   echo "========================================="
-  echo "  Codex Orchestrator - Setup"
+  echo "  CC Orchestrator - Setup"
   echo "========================================="
   echo ""
 
@@ -284,7 +282,7 @@ main() {
 
   check_tmux
   check_bun
-  check_codex
+  check_claude_code
 
   echo ""
   install_orchestrator

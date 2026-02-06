@@ -1,8 +1,0 @@
-{
-  "name": "codex-orchestrator",
-  "description": "Orchestrate OpenAI Codex agents from Claude Code via tmux sessions",
-  "author": {
-    "name": "Bootoshi",
-    "url": "https://github.com/kingbootoshi"
-  }
-}

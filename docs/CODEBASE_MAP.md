@@ -10,12 +10,12 @@ total_tokens: 9094
 
 ## System Overview
 
-CLI tool for delegating tasks to GPT Codex agents via tmux sessions. Designed for Claude Code orchestration with bidirectional communication.
+CLI tool for delegating tasks to Claude Code agents via tmux sessions. Designed for Claude Code orchestration with bidirectional communication.
 
 ```mermaid
 graph TB
     subgraph CLI
-        BIN[bin/codex-agent]
+        BIN[bin/cc-agent]
         CLI_TS[cli.ts]
     end
     subgraph Core
@@ -28,10 +28,10 @@ graph TB
     end
     subgraph External
         TMUX_BIN[tmux]
-        CODEX[codex CLI]
+        CLAUDE[claude CLI]
     end
     subgraph Storage
-        JOBS_DIR[~/.codex-agent/jobs/]
+        JOBS_DIR[~/.cc-agent/jobs/]
     end
 
     BIN --> CLI_TS
@@ -42,16 +42,16 @@ graph TB
     JOBS --> CONFIG
     TMUX --> CONFIG
     TMUX --> TMUX_BIN
-    TMUX --> CODEX
+    TMUX --> CLAUDE
     JOBS --> JOBS_DIR
 ```
 
 ## Directory Structure
 
 ```
-codex-agent/
+cc-agent/
 ├── bin/
-│   └── codex-agent      # Shell wrapper (47 tokens)
+│   └── cc-agent         # Shell wrapper (47 tokens)
 ├── src/
 │   ├── cli.ts           # Main CLI entry point (3,912 tokens)
 │   ├── config.ts        # Configuration constants (192 tokens)
@@ -66,7 +66,7 @@ codex-agent/
 
 ## Module Guide
 
-### bin/codex-agent
+### bin/cc-agent
 
 **Purpose**: Shell wrapper to execute TypeScript CLI with Bun runtime
 
@@ -86,9 +86,9 @@ codex-agent/
 | `SandboxMode` | type | "read-only" \| "workspace-write" \| "danger-full-access" |
 
 **Key Values**:
-- `model`: "gpt-5.3-codex"
-- `jobsDir`: `~/.codex-agent/jobs`
-- `tmuxPrefix`: "codex-agent"
+- `model`: "opus"
+- `jobsDir`: `~/.cc-agent/jobs`
+- `tmuxPrefix`: "cc-agent"
 - `defaultTimeout`: 60 minutes
 
 ---
@@ -125,21 +125,22 @@ codex-agent/
 | `getSessionName(jobId)` | Generate prefixed session name |
 | `isTmuxAvailable()` | Check tmux installed |
 | `sessionExists(name)` | Check session exists |
-| `createSession(options)` | Create detached session with codex |
+| `createSession(options)` | Create detached session with claude |
 | `sendMessage(name, msg)` | Send text to session |
 | `sendControl(name, key)` | Send control keys |
 | `capturePane(name, opts)` | Capture visible output |
 | `captureFullHistory(name)` | Capture scrollback buffer |
 | `killSession(name)` | Terminate session |
-| `listSessions()` | List all codex-agent sessions |
+| `listSessions()` | List all cc-agent sessions |
 | `isSessionActive(name)` | Check if process running |
 | `watchSession(name, cb, interval)` | Poll for updates |
 
 **Key Behaviors**:
 - Uses `script` command to log all output
-- Auto-dismisses codex update prompts (sends "3")
+- Uses `--dangerously-skip-permissions` for unattended operation
 - Long prompts (>5000 chars) use load-buffer instead of send-keys
-- Completion marker: "[codex-agent: Session complete"
+- Completion marker: "[cc-agent: Session complete"
+- Read-only sandbox maps to `--tools` flag restriction
 
 ---
 
@@ -165,7 +166,7 @@ codex-agent/
 
 **Job Status Lifecycle**: pending -> running -> completed | failed
 
-**Storage**: JSON files in `~/.codex-agent/jobs/`
+**Storage**: JSON files in `~/.cc-agent/jobs/`
 
 ---
 
@@ -188,13 +189,13 @@ codex-agent/
 | `kill <id>` | Terminate job |
 | `clean` | Remove jobs older than 7 days |
 | `delete <id>` | Delete specific job |
-| `health` | Check tmux and codex availability |
+| `health` | Check tmux and claude availability |
 
 **Options**:
 | Option | Description |
 |--------|-------------|
-| `-r, --reasoning` | low, medium, high, xhigh |
-| `-m, --model` | Model name |
+| `-r, --reasoning` | low, medium, high, xhigh (low=sonnet, else=opus) |
+| `-m, --model` | Model name (overrides reasoning-based selection) |
 | `-s, --sandbox` | read-only, workspace-write, danger-full-access |
 | `-f, --file` | Include files (glob, repeatable) |
 | `-d, --dir` | Working directory |
@@ -215,11 +216,11 @@ sequenceDiagram
     participant Tmux as tmux.ts
     participant Session as tmux session
 
-    User->>CLI: codex-agent start "prompt"
+    User->>CLI: cc-agent start "prompt"
     CLI->>Jobs: startJob(options)
     Jobs->>Tmux: createSession(options)
     Tmux->>Session: tmux new-session -d
-    Tmux->>Session: script + codex
+    Tmux->>Session: script + claude
     Tmux->>Session: send prompt
     Tmux-->>Jobs: sessionName
     Jobs-->>CLI: job (status: running)
@@ -235,7 +236,7 @@ sequenceDiagram
     participant Jobs as jobs.ts
     participant Tmux as tmux.ts
 
-    User->>CLI: codex-agent capture <id>
+    User->>CLI: cc-agent capture <id>
     CLI->>Jobs: getJobOutput(id, lines)
     Jobs->>Tmux: capturePane(session)
     alt Session exists
@@ -250,7 +251,7 @@ sequenceDiagram
 ## Storage Structure
 
 ```
-~/.codex-agent/jobs/
+~/.cc-agent/jobs/
 ├── <jobId>.json        # Job metadata (status, model, timestamps)
 ├── <jobId>.prompt      # Original prompt text
 └── <jobId>.log         # Terminal output from script command
@@ -258,7 +259,7 @@ sequenceDiagram
 
 ## Conventions
 
-- **Session naming**: `codex-agent-<8-char-hex-id>`
+- **Session naming**: `cc-agent-<8-char-hex-id>`
 - **Job IDs**: 8 random hex characters (4 bytes)
 - **Output capture**: tmux pane first, log file fallback
 - **Completion detection**: marker string + session existence check
@@ -266,11 +267,11 @@ sequenceDiagram
 ## Gotchas
 
 1. **Fixed delays**: Uses hardcoded sleep values (0.3-1s) for tmux TUI sync
-2. **Update prompt skip**: Automatically sends "3" to dismiss codex updates
-3. **Shell escaping**: Single quotes escaped as `'\''`
-4. **Platform**: Unix-like only (requires tmux, script command)
-5. **Log files**: May contain ANSI terminal codes
-6. **Large outputs**: 50MB buffer limit on captureFullHistory
+2. **Shell escaping**: Single quotes escaped as `'\''`
+3. **Platform**: Unix-like only (requires tmux, script command)
+4. **Log files**: May contain ANSI terminal codes
+5. **Large outputs**: 50MB buffer limit on captureFullHistory
+6. **Permissions**: Always uses `--dangerously-skip-permissions`
 
 ## Navigation Guide
 
