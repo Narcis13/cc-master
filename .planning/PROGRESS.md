@@ -9,9 +9,9 @@
 
 ## Current Status
 
-**Next session:** Session 1 - Core Dashboard (Server)
-**Last completed:** Session 0 - Foundation
-**Overall progress:** 1 / 7 sessions
+**Next session:** Session 2 - Core Dashboard (UI)
+**Last completed:** Session 1 - Core Dashboard (Server)
+**Overall progress:** 2 / 7 sessions
 
 ---
 
@@ -42,18 +42,25 @@
 
 ---
 
-### Session 1: Core Dashboard (Server) — PENDING
+### Session 1: Core Dashboard (Server) — COMPLETE
 
 **Goal:** GET /api/jobs returns live data. SSE pushes updates.
 
 **Tasks:**
-- [ ] `src/dashboard/state.ts` — fs.watch, in-memory state
-- [ ] `src/dashboard/api/jobs.ts` — REST endpoints
-- [ ] `src/dashboard/api/events.ts` — SSE stream
-- [ ] `src/dashboard/api/metrics.ts` — aggregate metrics
-- [ ] Wire routes into server.ts
-- [ ] Test with curl
+- [x] `src/dashboard/state.ts` — fs.watch, in-memory state, EventEmitter
+- [x] `src/dashboard/api/jobs.ts` — GET /api/jobs, GET /api/jobs/:id
+- [x] `src/dashboard/api/events.ts` — SSE stream (snapshot + deltas + heartbeat)
+- [x] `src/dashboard/api/metrics.ts` — GET /api/metrics (aggregate counters)
+- [x] Wire routes into server.ts (imports + app.route())
+- [x] Test with curl — all endpoints return valid JSON/SSE
 - [ ] Commit
+
+**Notes:**
+- `DashboardState` uses EventEmitter to broadcast changes; fs.watch debounced at 200ms
+- 5s polling interval catches tmux session completions that fs.watch misses
+- SSE sends `snapshot` on connect, then `job_created/updated/completed/failed` + `metrics_update` on changes
+- 30s heartbeat keeps SSE connections alive
+- `streamSSE` from `hono/streaming` handles proper SSE formatting
 
 ---
 
@@ -147,6 +154,8 @@ _Record decisions here as they're made during implementation:_
 |---|---|---|---|
 | JSX pragma | Classic `h` + `jsxFactory` in tsconfig (not `react-jsx`) | 0 | Bun.build doesn't resolve tsconfig paths for react/jsx-runtime |
 | Build pipeline | Integrated into `startDashboard()`, auto-builds on serve | 0 | Simpler than separate build step, always fresh |
+| SSE library | `hono/streaming` `streamSSE` | 1 | Built into Hono, proper SSE formatting, handles cleanup |
+| State pattern | EventEmitter singleton with fs.watch + polling | 1 | Simple, no extra deps, handles both file changes and tmux lifecycle |
 
 ## Known Issues
 
@@ -165,3 +174,7 @@ _Track new files as they're created:_
 - `ui/src/index.tsx` — Preact entry point
 - `ui/src/app.tsx` — App shell component
 - `ui/src/styles/theme.css` — Dark theme CSS variables
+- `src/dashboard/state.ts` — In-memory state manager with fs.watch + EventEmitter
+- `src/dashboard/api/jobs.ts` — REST endpoints for job data
+- `src/dashboard/api/events.ts` — SSE stream endpoint
+- `src/dashboard/api/metrics.ts` — Aggregate metrics endpoint

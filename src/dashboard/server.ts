@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import path from "path";
+import { jobsApi } from "./api/jobs.ts";
+import { eventsApi } from "./api/events.ts";
+import { metricsApi } from "./api/metrics.ts";
+import { getDashboardState } from "./state.ts";
 
 export const DEFAULT_PORT = 3131;
 
@@ -11,8 +15,11 @@ export function createDashboardApp() {
   const projectRoot = path.resolve(import.meta.dir, "../..");
   const uiDist = path.join(projectRoot, "ui/dist");
 
-  // API health check
+  // API routes
   app.get("/api/health", (c) => c.json({ status: "ok" }));
+  app.route("/api/jobs", jobsApi);
+  app.route("/api/events", eventsApi);
+  app.route("/api/metrics", metricsApi);
 
   // Serve built UI assets
   app.use("/*", serveStatic({ root: uiDist }));
@@ -38,6 +45,9 @@ export async function startDashboard(port: number = DEFAULT_PORT) {
     console.error("Failed to build dashboard UI");
     process.exit(1);
   }
+
+  // Initialize state manager (starts fs.watch + polling)
+  const state = getDashboardState();
 
   const app = createDashboardApp();
 
