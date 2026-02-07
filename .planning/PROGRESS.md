@@ -9,9 +9,9 @@
 
 ## Current Status
 
-**Next session:** Session 3 - Terminal Streaming
-**Last completed:** Session 2 - Core Dashboard (UI)
-**Overall progress:** 3 / 7 sessions
+**Next session:** Session 4 - Bidirectional Communication
+**Last completed:** Session 3 - Terminal Streaming
+**Overall progress:** 4 / 7 sessions
 
 ---
 
@@ -91,19 +91,29 @@
 
 ---
 
-### Session 3: Terminal Streaming — PENDING
+### Session 3: Terminal Streaming — COMPLETE
 
 **Goal:** Click job → live xterm.js terminal output.
 
 **Tasks:**
-- [ ] `src/dashboard/terminal-stream.ts` — tmux capture + delta
-- [ ] `src/dashboard/api/terminal.ts` — WebSocket endpoint
-- [ ] `ui/src/components/JobDetail.tsx` — detail view
-- [ ] `ui/src/components/TerminalPanel.tsx` — xterm.js wrapper
-- [ ] `ui/src/hooks/useTerminal.ts` — WebSocket hook
-- [ ] Client-side routing: /jobs/:id
-- [ ] Visual verify with live agent
+- [x] `src/dashboard/terminal-stream.ts` — log file streaming with byte-offset delta detection
+- [x] WebSocket endpoint integrated into `src/dashboard/server.ts` via Bun.serve websocket handler
+- [x] `ui/src/components/JobDetail.tsx` — detail view (info, prompt, terminal, tokens, files, summary)
+- [x] `ui/src/components/TerminalPanel.tsx` — xterm.js wrapper with dark theme colors
+- [x] `ui/src/hooks/useTerminal.ts` — WebSocket hook with writer ref pattern
+- [x] Client-side routing: hash-based (#/jobs/:id) in app.tsx
+- [x] JobCard click → navigates to detail view
+- [x] Visual verify: detail view renders, terminal shows ANSI output, back navigation works
 - [ ] Commit
+
+**Notes:**
+- Terminal streaming reads the `.log` file (written by `script` command) instead of tmux capture-pane — preserves raw ANSI codes that xterm.js renders natively
+- TerminalStreamer class tracks byte offset in log file, polls every 500ms, sends deltas as JSON over WebSocket
+- WebSocket upgrade handled directly in Bun.serve's fetch handler (not a separate Hono route) since Bun has native WS support
+- Used writer ref pattern: useTerminal hook writes to a ref that TerminalPanel sets to `term.write()` after xterm.js initializes
+- xterm.css copied to ui/dist during build alongside theme.css and layout.css
+- No separate `api/terminal.ts` file needed — WebSocket handler lives in server.ts alongside Hono (simpler)
+- Fragment import required for JSX fragments (`<>...</>`) in Preact with classic JSX pragma mode
 
 ---
 
@@ -169,6 +179,10 @@ _Record decisions here as they're made during implementation:_
 | SSE client | Native `EventSource` API in useJobs hook | 2 | Browser-native, auto-reconnects, no extra deps |
 | CSS approach | Separate layout.css copied to dist (no bundled CSS) | 2 | Simple, no CSS-in-JS deps, follows theme.css pattern from Session 0 |
 | State management | Preact useState + SSE events (no signals/stores) | 2 | Sufficient at current scale, avoids extra abstractions |
+| Terminal data source | Log file polling (not tmux capture-pane) | 3 | Preserves raw ANSI codes; xterm.js renders them natively |
+| WebSocket integration | Bun.serve websocket handler (not separate Hono route) | 3 | Bun has native WS; cleaner than Hono WS adapter |
+| Client routing | Hash-based (#/jobs/:id) with useState | 3 | No router dep needed; simple for 2 views |
+| Terminal writer | Ref-based writer pattern between hook and component | 3 | Decouples WebSocket lifecycle from xterm.js lifecycle |
 
 ## Known Issues
 
@@ -198,3 +212,7 @@ _Track new files as they're created:_
 - `ui/src/components/JobCard.tsx` — Job status card with live timer
 - `ui/src/components/Dashboard.tsx` — Job grid with filter/sort/search
 - `ui/src/styles/layout.css` — Grid layout, card styles, responsive
+- `src/dashboard/terminal-stream.ts` — Log file streamer with byte-offset deltas
+- `ui/src/hooks/useTerminal.ts` — WebSocket hook for terminal data
+- `ui/src/components/TerminalPanel.tsx` — xterm.js wrapper with dark theme
+- `ui/src/components/JobDetail.tsx` — Full job detail view with terminal

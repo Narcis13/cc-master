@@ -27,7 +27,7 @@ export function JobCard({ job }: { job: JobEntry }) {
   }, [job.id, job.status, job.elapsed_ms]);
 
   return (
-    <div class={`job-card job-card--${job.status}`}>
+    <div class={`job-card job-card--${job.status}`} onClick={() => { window.location.hash = `#/jobs/${job.id}`; }}>
       <div class="job-card-header">
         <div class="job-card-id-row">
           <span class={`status-dot status-dot--${job.status}`} />

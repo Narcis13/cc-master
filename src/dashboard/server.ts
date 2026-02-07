@@ -5,6 +5,7 @@ import { jobsApi } from "./api/jobs.ts";
 import { eventsApi } from "./api/events.ts";
 import { metricsApi } from "./api/metrics.ts";
 import { getDashboardState } from "./state.ts";
+import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
 
 export const DEFAULT_PORT = 3131;
 
@@ -56,7 +57,39 @@ export async function startDashboard(port: number = DEFAULT_PORT) {
 
   Bun.serve({
     port,
-    fetch: app.fetch,
+    fetch(req, server) {
+      const url = new URL(req.url);
+
+      // WebSocket upgrade for terminal streaming
+      if (
+        url.pathname.startsWith("/api/terminal/") &&
+        req.headers.get("upgrade") === "websocket"
+      ) {
+        const jobId = url.pathname.split("/").pop();
+        if (jobId && server.upgrade(req, { data: { jobId } })) {
+          return undefined;
+        }
+        return new Response("WebSocket upgrade failed", { status: 400 });
+      }
+
+      return app.fetch(req);
+    },
+    websocket: {
+      open(ws) {
+        const { jobId } = ws.data as { jobId: string };
+        const streamer = getStreamer(jobId);
+        streamer.addClient(ws as any);
+      },
+      message(_ws, _message) {
+        // Input forwarding will be added in Session 4
+      },
+      close(ws) {
+        const { jobId } = ws.data as { jobId: string };
+        const streamer = getStreamer(jobId);
+        streamer.removeClient(ws as any);
+        cleanupStreamer(jobId);
+      },
+    },
   });
 }
 
@@ -91,6 +124,7 @@ async function buildUI(projectRoot: string): Promise<boolean> {
   <title>CC-Agent Dashboard</title>
   <link rel="stylesheet" href="/theme.css">
   <link rel="stylesheet" href="/layout.css">
+  <link rel="stylesheet" href="/xterm.css">
 </head>
 <body>
   <div id="app"></div>
@@ -108,6 +142,11 @@ async function buildUI(projectRoot: string): Promise<boolean> {
     const layoutSrc = path.join(projectRoot, "ui/src/styles/layout.css");
     const layoutDst = path.join(outdir, "layout.css");
     await Bun.write(layoutDst, Bun.file(layoutSrc));
+
+    // Copy xterm.css to dist
+    const xtermCssSrc = path.join(projectRoot, "node_modules/@xterm/xterm/css/xterm.css");
+    const xtermCssDst = path.join(outdir, "xterm.css");
+    await Bun.write(xtermCssDst, Bun.file(xtermCssSrc));
 
     console.log("Dashboard UI built successfully");
     return true;

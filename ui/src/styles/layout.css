@@ -355,6 +355,198 @@
   color: var(--status-failed);
 }
 
+/* Clickable cards */
+.job-card {
+  cursor: pointer;
+}
+
+/* Topbar title as link */
+.topbar-title {
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+/* ======= Job Detail View ======= */
+.job-detail {
+  max-width: 1400px;
+}
+
+.detail-header {
+  margin-bottom: 20px;
+}
+
+.back-link {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.back-link:hover {
+  color: var(--accent);
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-body {
+  display: flex;
+  gap: 24px;
+}
+
+.detail-main {
+  flex: 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-sidebar {
+  flex: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.detail-section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  font-size: 13px;
+}
+
+.info-label {
+  color: var(--text-secondary);
+}
+
+.info-cwd {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.prompt-display {
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--text-primary);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* ======= Terminal Panel ======= */
+.terminal-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.terminal-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.terminal-container {
+  height: 450px;
+  padding: 4px;
+}
+
+.terminal-complete-badge {
+  color: var(--status-complete);
+  margin-left: auto;
+  font-size: 11px;
+}
+
+/* ======= Token Detail ======= */
+.token-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.token-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.token-label {
+  color: var(--text-secondary);
+}
+
+.context-bar-lg {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.context-pct-lg {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ======= Files List ======= */
+.files-list {
+  list-style: none;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.files-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  word-break: break-all;
+}
+
+.files-list li:last-child {
+  border-bottom: none;
+}
+
+/* ======= Summary ======= */
+.summary-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ======= Responsive ======= */
+@media (max-width: 1024px) {
+  .detail-body {
+    flex-direction: column;
+  }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .job-grid {
