@@ -4,6 +4,7 @@
 // Designed for Claude Code orchestration with bidirectional communication
 
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
+import { startDashboard, DEFAULT_PORT } from "./dashboard/server.ts";
 import {
   startJob,
   loadJob,
@@ -38,6 +39,7 @@ Usage:
   cc-agent sessions                   List active tmux sessions
   cc-agent kill <jobId>               Kill running job
   cc-agent clean                      Clean old completed jobs
+  cc-agent dashboard [--port <n>]      Launch monitoring dashboard
   cc-agent health                     Check tmux and claude code availability
 
 Options:
@@ -594,6 +596,17 @@ async function main() {
       case "clean": {
         const cleaned = cleanupOldJobs(7);
         console.log(`Cleaned ${cleaned} old jobs`);
+        break;
+      }
+
+      case "dashboard": {
+        const port = options.jobsLimit ?? DEFAULT_PORT; // reuse --limit for port for now
+        // Parse --port from raw args
+        const portIdx = args.indexOf("--port");
+        const dashPort = portIdx !== -1 && args[portIdx + 1] ? parseInt(args[portIdx + 1], 10) : DEFAULT_PORT;
+        await startDashboard(dashPort);
+        // Keep process alive
+        await new Promise(() => {});
         break;
       }
 
