@@ -9,9 +9,9 @@
 
 ## Current Status
 
-**Next session:** Session 2 - Core Dashboard (UI)
-**Last completed:** Session 1 - Core Dashboard (Server)
-**Overall progress:** 2 / 7 sessions
+**Next session:** Session 3 - Terminal Streaming
+**Last completed:** Session 2 - Core Dashboard (UI)
+**Overall progress:** 3 / 7 sessions
 
 ---
 
@@ -64,20 +64,30 @@
 
 ---
 
-### Session 2: Core Dashboard (UI) — PENDING
+### Session 2: Core Dashboard (UI) — COMPLETE
 
 **Goal:** Browser shows job cards with live SSE updates.
 
 **Tasks:**
-- [ ] `ui/src/app.tsx` — layout shell, sidebar, routing
-- [ ] `ui/src/components/Dashboard.tsx` — job grid
-- [ ] `ui/src/components/JobCard.tsx` — status card
-- [ ] `ui/src/components/StatusBar.tsx` — aggregate metrics
-- [ ] `ui/src/hooks/useJobs.ts` — SSE subscription
-- [ ] `ui/src/lib/api.ts` + `format.ts` — helpers
-- [ ] `ui/src/styles/layout.css` — grid layout
-- [ ] Visual verify in browser
+- [x] `ui/src/app.tsx` — layout shell with topbar, connection indicator, useJobs hook
+- [x] `ui/src/components/Dashboard.tsx` — job grid with filter/sort/search
+- [x] `ui/src/components/JobCard.tsx` — status badge, token bar, prompt preview, live elapsed timer
+- [x] `ui/src/components/StatusBar.tsx` — aggregate metrics (active/completed/failed/total/tokens)
+- [x] `ui/src/hooks/useJobs.ts` — SSE subscription (EventSource, handles all event types)
+- [x] `ui/src/lib/api.ts` + `format.ts` — fetch helpers + duration/token/time formatters
+- [x] `ui/src/styles/layout.css` — responsive grid, card styles, status colors, animations
+- [x] Updated `src/dashboard/server.ts` — copies layout.css to dist, linked in HTML
+- [x] Visual verify in browser — dark theme, job card renders, filters work, SSE live
 - [ ] Commit
+
+**Notes:**
+- SSE hook uses `EventSource` with listeners for snapshot, job_created, job_updated, job_completed, job_failed, metrics_update
+- JobCard has live elapsed timer (1s interval) for running jobs
+- Filter by status (all/running/pending/completed/failed), sort by recent/status/duration, text search
+- Connection dot in topbar (green=connected, red=disconnected)
+- Status-colored left borders on cards (blue=running, amber=pending, green=completed, red=failed)
+- Pulsing animation on running status dots
+- Responsive grid: auto-fill with min 340px columns
 
 ---
 
@@ -156,6 +166,9 @@ _Record decisions here as they're made during implementation:_
 | Build pipeline | Integrated into `startDashboard()`, auto-builds on serve | 0 | Simpler than separate build step, always fresh |
 | SSE library | `hono/streaming` `streamSSE` | 1 | Built into Hono, proper SSE formatting, handles cleanup |
 | State pattern | EventEmitter singleton with fs.watch + polling | 1 | Simple, no extra deps, handles both file changes and tmux lifecycle |
+| SSE client | Native `EventSource` API in useJobs hook | 2 | Browser-native, auto-reconnects, no extra deps |
+| CSS approach | Separate layout.css copied to dist (no bundled CSS) | 2 | Simple, no CSS-in-JS deps, follows theme.css pattern from Session 0 |
+| State management | Preact useState + SSE events (no signals/stores) | 2 | Sufficient at current scale, avoids extra abstractions |
 
 ## Known Issues
 
@@ -178,3 +191,10 @@ _Track new files as they're created:_
 - `src/dashboard/api/jobs.ts` — REST endpoints for job data
 - `src/dashboard/api/events.ts` — SSE stream endpoint
 - `src/dashboard/api/metrics.ts` — Aggregate metrics endpoint
+- `ui/src/lib/format.ts` — Duration, token, time formatters
+- `ui/src/lib/api.ts` — Fetch helpers
+- `ui/src/hooks/useJobs.ts` — SSE subscription hook (EventSource)
+- `ui/src/components/StatusBar.tsx` — Aggregate metrics display
+- `ui/src/components/JobCard.tsx` — Job status card with live timer
+- `ui/src/components/Dashboard.tsx` — Job grid with filter/sort/search
+- `ui/src/styles/layout.css` — Grid layout, card styles, responsive

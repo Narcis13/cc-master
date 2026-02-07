@@ -1,0 +1,372 @@
+/* Layout shell */
+.shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.topbar-version {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+}
+
+.connection-dot.connected {
+  background: var(--status-complete);
+}
+
+.connection-dot.disconnected {
+  background: var(--status-failed);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Status bar */
+.status-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.status-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 100px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.metric-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.metric-active {
+  color: var(--status-running);
+}
+
+.metric-complete {
+  color: var(--status-complete);
+}
+
+.metric-failed {
+  color: var(--status-failed);
+}
+
+/* Toolbar */
+.dashboard-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.filter-select:hover {
+  border-color: var(--text-secondary);
+}
+
+.search-input {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Job grid */
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Job card */
+.job-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+
+.job-card:hover {
+  border-color: var(--text-secondary);
+}
+
+.job-card--running {
+  border-left: 3px solid var(--status-running);
+}
+
+.job-card--pending {
+  border-left: 3px solid var(--status-pending);
+}
+
+.job-card--completed {
+  border-left: 3px solid var(--status-complete);
+}
+
+.job-card--failed {
+  border-left: 3px solid var(--status-failed);
+}
+
+.job-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.job-card-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot--running {
+  background: var(--status-running);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-dot--pending {
+  background: var(--status-pending);
+}
+
+.status-dot--completed {
+  background: var(--status-complete);
+}
+
+.status-dot--failed {
+  background: var(--status-failed);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.job-id {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.status-badge--running {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--status-running);
+}
+
+.status-badge--pending {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--status-pending);
+}
+
+.status-badge--completed {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--status-complete);
+}
+
+.status-badge--failed {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--status-failed);
+}
+
+.job-elapsed {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.job-card-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.meta-sep {
+  margin: 0 4px;
+  opacity: 0.5;
+}
+
+.job-prompt {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Token display */
+.job-tokens {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.token-counts {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.token-in {
+  color: var(--status-running);
+}
+
+.token-out {
+  color: var(--accent);
+}
+
+.context-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.context-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.context-pct {
+  color: var(--text-secondary);
+  font-size: 11px;
+  min-width: 30px;
+  text-align: right;
+}
+
+/* Files & summary */
+.job-files {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.job-summary {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.job-error {
+  font-size: 12px;
+  color: var(--status-failed);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .job-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .content {
+    padding: 12px;
+  }
+}

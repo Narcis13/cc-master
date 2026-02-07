@@ -90,18 +90,7 @@ async function buildUI(projectRoot: string): Promise<boolean> {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CC-Agent Dashboard</title>
   <link rel="stylesheet" href="/theme.css">
-  <style>
-    .shell { height: 100%; display: flex; flex-direction: column; }
-    .topbar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 20px; background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border);
-    }
-    .topbar-title { font-size: 16px; font-weight: 600; }
-    .topbar-version { color: var(--text-secondary); font-size: 12px; }
-    .content { flex: 1; padding: 20px; }
-    .placeholder { color: var(--text-secondary); }
-  </style>
+  <link rel="stylesheet" href="/layout.css">
 </head>
 <body>
   <div id="app"></div>
@@ -111,10 +100,14 @@ async function buildUI(projectRoot: string): Promise<boolean> {
 
     await Bun.write(path.join(outdir, "index.html"), htmlContent);
 
-    // Copy theme.css to dist
+    // Copy CSS to dist
     const themeSrc = path.join(projectRoot, "ui/src/styles/theme.css");
     const themeDst = path.join(outdir, "theme.css");
     await Bun.write(themeDst, Bun.file(themeSrc));
+
+    const layoutSrc = path.join(projectRoot, "ui/src/styles/layout.css");
+    const layoutDst = path.join(outdir, "layout.css");
+    await Bun.write(layoutDst, Bun.file(layoutSrc));
 
     console.log("Dashboard UI built successfully");
     return true;
