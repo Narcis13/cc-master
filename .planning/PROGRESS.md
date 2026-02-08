@@ -9,9 +9,9 @@
 
 ## Current Status
 
-**Next session:** Session 6 - Analytics + Polish
-**Last completed:** Session 5 - Hooks Integration
-**Overall progress:** 6 / 7 sessions
+**Next session:** Session 7 - Final Polish (optional)
+**Last completed:** Session 6 - Analytics + Polish
+**Overall progress:** 7 / 7 sessions (feature complete)
 
 ---
 
@@ -174,21 +174,33 @@
 
 ---
 
-### Session 6: Analytics + Polish — PENDING
+### Session 6: Analytics + Polish — COMPLETE
 
 **Goal:** Historical data, responsive, split terminals, command palette.
 
 **Tasks:**
-- [ ] `src/dashboard/db.ts` — bun:sqlite + schema
-- [ ] Job completion → SQLite auto-record
-- [ ] `GET /api/metrics/history`
-- [ ] `ui/src/components/MetricsChart.tsx`
-- [ ] Split-pane multi-terminal view
-- [ ] Command palette (Ctrl+K)
-- [ ] Responsive breakpoints
-- [ ] Pipeline timeline view
-- [ ] Final visual verify
+- [x] `src/dashboard/db.ts` — bun:sqlite setup (job_history, events, daily_metrics tables)
+- [x] Job completion → SQLite auto-record (DashboardState persists on complete/fail)
+- [x] `GET /api/metrics/history` — daily metrics by range (7d/30d/90d)
+- [x] `GET /api/metrics/jobs` — historical job records
+- [x] `ui/src/components/MetricsChart.tsx` — canvas-based charts (Tokens/Jobs/Duration)
+- [x] `ui/src/components/SplitTerminal.tsx` — multi-terminal split view (1x1/2x1/2x2 layouts)
+- [x] `ui/src/components/CommandPalette.tsx` — Ctrl+K palette with fuzzy search
+- [x] `ui/src/components/PipelineView.tsx` — Gantt-style pipeline timeline
+- [x] Responsive breakpoints (1200px/1024px/768px/480px)
+- [x] Updated topbar navigation (Jobs/Timeline/Alerts/Analytics/Split/Pipeline)
+- [x] Visual verify: all views render correctly in browser
 - [ ] Commit
+
+**Notes:**
+- SQLite DB at `~/.cc-agent/dashboard.db` with WAL mode for concurrent reads
+- `recordJobCompletion()` called from DashboardState on `job_completed` and `job_failed` events
+- `recordHookEvent()` also persists hook events to SQLite for historical queries
+- MetricsChart uses canvas 2D rendering (no chart library deps) with DPR-aware scaling
+- Command palette: navigation, new agent, job search, kill actions — keyboard-driven (arrows + enter)
+- Split terminal reuses TerminalPanel with job picker chips and grid layout toggles
+- Pipeline view shows time-scaled Gantt bars colored by status, clickable to job detail
+- Responsive: 4 breakpoints, topbar nav hides on mobile, grid collapses gracefully
 
 ---
 
@@ -218,6 +230,12 @@ _Record decisions here as they're made during implementation:_
 | Notifications | Client-side generation from job state transitions | 5 | No server-side notification state needed; simpler, stateless |
 | Topbar navigation | Hash-based tabs (Jobs / Timeline / Alerts) | 5 | Extends existing hash routing; no new router needed |
 | Hook event SSE type | New `hook_event` event type on SSE stream | 5 | Keeps hook events separate from job events; UI can handle independently |
+| Historical storage | bun:sqlite with WAL mode | 6 | Built into Bun, zero deps, WAL for concurrent reads during SSE writes |
+| Chart rendering | Canvas 2D API (no library) | 6 | Zero deps, DPR-aware, sufficient for bar charts; avoids chart.js/d3 overhead |
+| Command palette | Ctrl+K modal with fuzzy filter | 6 | Standard shortcut; lists nav, actions, and jobs; keyboard-driven |
+| Split terminal layout | CSS Grid with layout toggles (1x1/2x1/2x2) | 6 | Reuses TerminalPanel; grid auto-adjusts with responsive breakpoints |
+| Pipeline view | Absolute-positioned bars in relative container | 6 | Time-proportional widths; clickable to job detail; overflow clipped |
+| Responsive strategy | 4 breakpoints (1200/1024/768/480px) | 6 | Progressive collapse: grid → single col, nav hidden on mobile |
 
 ## Known Issues
 
@@ -260,3 +278,8 @@ _Track new files as they're created:_
 - `src/dashboard/api/hook-events.ts` — GET /api/hook-events REST endpoint
 - `ui/src/components/Timeline.tsx` — Chronological event timeline
 - `ui/src/components/NotificationCenter.tsx` — Alerts panel with severity filtering
+- `src/dashboard/db.ts` — bun:sqlite setup + schema (job_history, events, daily_metrics)
+- `ui/src/components/MetricsChart.tsx` — Canvas-based analytics charts
+- `ui/src/components/SplitTerminal.tsx` — Multi-terminal split view
+- `ui/src/components/CommandPalette.tsx` — Ctrl+K command palette
+- `ui/src/components/PipelineView.tsx` — Gantt-style pipeline timeline

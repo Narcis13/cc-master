@@ -7,6 +7,7 @@ import { config } from "../config.ts";
 import { getJobsJson, loadJob, refreshJobStatus, type JobsJsonEntry, type JobsJsonOutput } from "../jobs.ts";
 import { mkdirSync } from "fs";
 import { getEventsReader, type HookEvent } from "./events-reader.ts";
+import { recordJobCompletion, recordHookEvent } from "./db.ts";
 
 export type StateEvent =
   | { type: "snapshot"; jobs: JobsJsonEntry[]; metrics: DashboardMetrics }
@@ -55,6 +56,17 @@ export class DashboardState extends EventEmitter {
     const eventsReader = getEventsReader();
     this.onHookEvent = (event: HookEvent) => {
       this.emit("change", { type: "hook_event", event } satisfies StateEvent);
+      try {
+        recordHookEvent({
+          timestamp: event.timestamp,
+          job_id: event.job_id,
+          event_type: event.event_type,
+          tool_name: event.tool_name,
+          data: event.data,
+        });
+      } catch {
+        // Ignore SQLite errors for hook events
+      }
     };
     eventsReader.on("event", this.onHookEvent);
   }
@@ -91,8 +103,10 @@ export class DashboardState extends EventEmitter {
       } else if (prev.status !== job.status) {
         if (job.status === "completed") {
           this.emit("change", { type: "job_completed", job } satisfies StateEvent);
+          this.persistJob(job);
         } else if (job.status === "failed") {
           this.emit("change", { type: "job_failed", job } satisfies StateEvent);
+          this.persistJob(job);
         } else {
           this.emit("change", { type: "job_updated", job } satisfies StateEvent);
         }
@@ -103,6 +117,31 @@ export class DashboardState extends EventEmitter {
 
     this.jobs = newJobsMap;
     this.emit("change", { type: "metrics_update", metrics: this.computeMetrics() } satisfies StateEvent);
+  }
+
+  private persistJob(job: JobsJsonEntry) {
+    try {
+      recordJobCompletion({
+        id: job.id,
+        status: job.status,
+        model: job.model,
+        reasoning: job.reasoning,
+        cwd: job.cwd,
+        started_at: job.started_at,
+        completed_at: job.completed_at,
+        elapsed_ms: job.elapsed_ms,
+        tokens: job.tokens ? {
+          input: job.tokens.input,
+          output: job.tokens.output,
+          context_used_pct: job.tokens.context_used_pct,
+        } : null,
+        files_modified: job.files_modified,
+        prompt: job.prompt,
+        summary: job.summary,
+      });
+    } catch (err) {
+      console.error("Failed to persist job to SQLite:", err);
+    }
   }
 
   private computeMetrics(): DashboardMetrics {

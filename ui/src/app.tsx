@@ -6,6 +6,10 @@ import { JobDetail } from "./components/JobDetail";
 import { NewJobForm } from "./components/NewJobForm";
 import { Timeline } from "./components/Timeline";
 import { NotificationCenter } from "./components/NotificationCenter";
+import { MetricsChart } from "./components/MetricsChart";
+import { SplitTerminal } from "./components/SplitTerminal";
+import { CommandPalette } from "./components/CommandPalette";
+import { PipelineView } from "./components/PipelineView";
 
 export function App() {
   const {
@@ -22,6 +26,7 @@ export function App() {
   const [route, setRoute] = useState(window.location.hash || "#/");
   const [showNewJob, setShowNewJob] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
 
   useEffect(() => {
     const onHashChange = () => setRoute(window.location.hash || "#/");
@@ -32,9 +37,18 @@ export function App() {
   // Global keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Don't fire shortcuts when typing in inputs
+      // Don't fire shortcuts when typing in inputs (except Escape and Cmd+K)
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+
+      // Command palette: Ctrl+K / Cmd+K always works
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowPalette((p) => !p);
+        return;
+      }
+
+      if (isInput) return;
 
       if (e.key === "n" || e.key === "N") {
         e.preventDefault();
@@ -48,6 +62,7 @@ export function App() {
         setShowHelp((p) => !p);
       } else if (e.key === "Escape") {
         setShowHelp(false);
+        setShowPalette(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -57,6 +72,10 @@ export function App() {
   const jobMatch = route.match(/^#\/jobs\/(.+)$/);
   const isTimeline = route === "#/timeline";
   const isNotifications = route === "#/notifications";
+  const isAnalytics = route === "#/analytics";
+  const isSplit = route === "#/split";
+  const isPipeline = route === "#/pipeline";
+  const isHome = !jobMatch && !isTimeline && !isNotifications && !isAnalytics && !isSplit && !isPipeline;
 
   return (
     <div class="shell">
@@ -64,7 +83,7 @@ export function App() {
         <a href="#/" class="topbar-title">CC-Agent Dashboard</a>
         <span class="topbar-version">v1.0</span>
         <nav class="topbar-nav">
-          <a href="#/" class={`topbar-nav-link ${!jobMatch && !isTimeline && !isNotifications ? "active" : ""}`}>
+          <a href="#/" class={`topbar-nav-link ${isHome ? "active" : ""}`}>
             Jobs
           </a>
           <a href="#/timeline" class={`topbar-nav-link ${isTimeline ? "active" : ""}`}>
@@ -74,14 +93,32 @@ export function App() {
             Alerts
             {unreadCount > 0 && <span class="notification-badge">{unreadCount}</span>}
           </a>
+          <a href="#/analytics" class={`topbar-nav-link ${isAnalytics ? "active" : ""}`}>
+            Analytics
+          </a>
+          <a href="#/split" class={`topbar-nav-link ${isSplit ? "active" : ""}`}>
+            Split
+          </a>
+          <a href="#/pipeline" class={`topbar-nav-link ${isPipeline ? "active" : ""}`}>
+            Pipeline
+          </a>
         </nav>
+        <button class="btn btn--ghost btn--sm topbar-palette" onClick={() => setShowPalette(true)} title="Command Palette (Ctrl+K)">
+          <kbd class="palette-kbd">Ctrl+K</kbd>
+        </button>
         <button class="btn btn--primary btn--sm topbar-new" onClick={() => setShowNewJob(true)}>
           + New Agent
         </button>
         <span class={`connection-dot ${connected ? "connected" : "disconnected"}`} />
       </header>
       <main class="content">
-        {isTimeline ? (
+        {isAnalytics ? (
+          <MetricsChart />
+        ) : isSplit ? (
+          <SplitTerminal jobs={jobs} />
+        ) : isPipeline ? (
+          <PipelineView jobs={jobs} />
+        ) : isTimeline ? (
           <Timeline events={hookEvents} />
         ) : isNotifications ? (
           <NotificationCenter
@@ -98,6 +135,13 @@ export function App() {
       </main>
 
       {showNewJob && <NewJobForm onClose={() => setShowNewJob(false)} />}
+      {showPalette && (
+        <CommandPalette
+          jobs={jobs}
+          onClose={() => setShowPalette(false)}
+          onNewAgent={() => setShowNewJob(true)}
+        />
+      )}
 
       {showHelp && (
         <div class="modal-backdrop" onClick={() => setShowHelp(false)}>
@@ -108,6 +152,7 @@ export function App() {
             </div>
             <div class="modal-body">
               <div class="shortcut-list">
+                <div class="shortcut-row"><kbd>Ctrl+K</kbd><span>Command palette</span></div>
                 <div class="shortcut-row"><kbd>N</kbd><span>New agent</span></div>
                 <div class="shortcut-row"><kbd>/</kbd><span>Focus search</span></div>
                 <div class="shortcut-row"><kbd>?</kbd><span>Toggle this help</span></div>
