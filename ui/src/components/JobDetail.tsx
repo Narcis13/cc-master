@@ -2,6 +2,7 @@ import { h, Fragment } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import type { JobEntry } from "../hooks/useJobs";
 import { TerminalPanel } from "./TerminalPanel";
+import { MessageInput } from "./MessageInput";
 import { formatDuration, formatTokens, formatTime } from "../lib/format";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -14,6 +15,8 @@ const STATUS_LABELS: Record<string, string> = {
 export function JobDetail({ jobId, jobs }: { jobId: string; jobs: JobEntry[] }) {
   const job = jobs.find((j) => j.id === jobId);
   const [elapsed, setElapsed] = useState(job?.elapsed_ms ?? 0);
+  const [confirmKill, setConfirmKill] = useState(false);
+  const [killing, setKilling] = useState(false);
 
   // Live-tick elapsed for running jobs
   useEffect(() => {
@@ -26,21 +29,33 @@ export function JobDetail({ jobId, jobs }: { jobId: string; jobs: JobEntry[] }) 
     return () => clearInterval(interval);
   }, [job?.id, job?.status, job?.elapsed_ms]);
 
+  const doKill = async () => {
+    setKilling(true);
+    try {
+      await fetch(`/api/actions/jobs/${jobId}/kill`, { method: "POST" });
+    } finally {
+      setKilling(false);
+      setConfirmKill(false);
+    }
+  };
+
   if (!job) {
     return (
       <div class="job-detail">
         <div class="detail-header">
-          <a href="#/" class="back-link">← Dashboard</a>
+          <a href="#/" class="back-link">&larr; Dashboard</a>
         </div>
         <div class="empty-state">Job not found</div>
       </div>
     );
   }
 
+  const isRunning = job.status === "running";
+
   return (
     <div class="job-detail">
       <div class="detail-header">
-        <a href="#/" class="back-link">← Dashboard</a>
+        <a href="#/" class="back-link">&larr; Dashboard</a>
         <div class="detail-title-row">
           <span class={`status-dot status-dot--${job.status}`} />
           <code class="job-id">{job.id}</code>
@@ -48,6 +63,25 @@ export function JobDetail({ jobId, jobs }: { jobId: string; jobs: JobEntry[] }) 
             {STATUS_LABELS[job.status] || job.status}
           </span>
           <span class="job-elapsed">{formatDuration(elapsed)}</span>
+          {isRunning && (
+            <>
+              {confirmKill ? (
+                <span class="kill-confirm">
+                  <span class="kill-confirm-text">Kill this agent?</span>
+                  <button class="btn btn--danger btn--sm" onClick={doKill} disabled={killing}>
+                    {killing ? "Killing..." : "Yes, Kill"}
+                  </button>
+                  <button class="btn btn--ghost btn--sm" onClick={() => setConfirmKill(false)}>
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button class="btn btn--danger-outline btn--sm" onClick={() => setConfirmKill(true)}>
+                  Kill
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -81,6 +115,7 @@ export function JobDetail({ jobId, jobs }: { jobId: string; jobs: JobEntry[] }) 
           </div>
 
           <TerminalPanel jobId={jobId} />
+          <MessageInput jobId={jobId} disabled={!isRunning} />
         </div>
 
         <div class="detail-sidebar">

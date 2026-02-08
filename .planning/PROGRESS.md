@@ -9,9 +9,9 @@
 
 ## Current Status
 
-**Next session:** Session 4 - Bidirectional Communication
-**Last completed:** Session 3 - Terminal Streaming
-**Overall progress:** 4 / 7 sessions
+**Next session:** Session 5 - Hooks Integration
+**Last completed:** Session 4 - Bidirectional Communication
+**Overall progress:** 5 / 7 sessions
 
 ---
 
@@ -117,18 +117,28 @@
 
 ---
 
-### Session 4: Bidirectional Communication — PENDING
+### Session 4: Bidirectional Communication — COMPLETE
 
 **Goal:** Send messages, kill agents, start new agents from UI.
 
 **Tasks:**
-- [ ] `src/dashboard/api/actions.ts` — POST send/kill/create
-- [ ] `ui/src/components/MessageInput.tsx`
-- [ ] `ui/src/components/NewJobForm.tsx`
-- [ ] Kill confirmation dialog
-- [ ] Keyboard shortcuts
-- [ ] Verify: send message to running agent from browser
+- [x] `src/dashboard/api/actions.ts` — POST send/kill/create (3 endpoints)
+- [x] `ui/src/components/MessageInput.tsx` — text input + Send button, disabled when not running
+- [x] `ui/src/components/NewJobForm.tsx` — modal with prompt, model, reasoning, sandbox, cwd
+- [x] Kill confirmation dialog — inline confirm in detail header (Yes, Kill / Cancel)
+- [x] Keyboard shortcuts — N (new agent), / (focus search), ? (help modal), Esc (close)
+- [x] WebSocket input forwarding — `{ type: 'input', data }` messages forwarded to tmux
+- [x] "+ New Agent" button in topbar
+- [x] Visual verify: all endpoints tested via curl + Playwright screenshots
 - [ ] Commit
+
+**Notes:**
+- Actions API mounted at `/api/actions/` (separate from existing `/api/jobs/` read routes)
+- WebSocket message handler now parses `{ type: 'input', data }` and calls `sendToJob()`
+- Kill button only shows for running jobs; two-step confirm prevents accidental kills
+- NewJobForm uses Cmd+Enter / Ctrl+Enter to submit, Esc to close
+- Message input disabled with "Agent is not running" placeholder for non-running jobs
+- CSS adds btn system (primary, ghost, danger, danger-outline), modal, form elements, shortcut kbd styles
 
 ---
 
@@ -183,6 +193,9 @@ _Record decisions here as they're made during implementation:_
 | WebSocket integration | Bun.serve websocket handler (not separate Hono route) | 3 | Bun has native WS; cleaner than Hono WS adapter |
 | Client routing | Hash-based (#/jobs/:id) with useState | 3 | No router dep needed; simple for 2 views |
 | Terminal writer | Ref-based writer pattern between hook and component | 3 | Decouples WebSocket lifecycle from xterm.js lifecycle |
+| Actions API route | Separate `/api/actions/` Hono sub-app | 4 | Keeps read (jobs) and write (actions) routes cleanly separated |
+| Kill UX | Inline two-step confirm (not modal) | 4 | Faster than modal; visible in context of the job header |
+| WS input forwarding | Parse JSON `{ type, data }` in message handler | 4 | Matches PRD protocol; extensible for future message types |
 
 ## Known Issues
 
@@ -216,3 +229,6 @@ _Track new files as they're created:_
 - `ui/src/hooks/useTerminal.ts` — WebSocket hook for terminal data
 - `ui/src/components/TerminalPanel.tsx` — xterm.js wrapper with dark theme
 - `ui/src/components/JobDetail.tsx` — Full job detail view with terminal
+- `src/dashboard/api/actions.ts` — POST endpoints for send, kill, create jobs
+- `ui/src/components/MessageInput.tsx` — Send message input bar
+- `ui/src/components/NewJobForm.tsx` — New agent modal form

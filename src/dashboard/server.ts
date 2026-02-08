@@ -4,8 +4,10 @@ import path from "path";
 import { jobsApi } from "./api/jobs.ts";
 import { eventsApi } from "./api/events.ts";
 import { metricsApi } from "./api/metrics.ts";
+import { actionsApi } from "./api/actions.ts";
 import { getDashboardState } from "./state.ts";
 import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
+import { sendToJob } from "../jobs.ts";
 
 export const DEFAULT_PORT = 3131;
 
@@ -21,6 +23,7 @@ export function createDashboardApp() {
   app.route("/api/jobs", jobsApi);
   app.route("/api/events", eventsApi);
   app.route("/api/metrics", metricsApi);
+  app.route("/api/actions", actionsApi);
 
   // Serve built UI assets
   app.use("/*", serveStatic({ root: uiDist }));
@@ -80,8 +83,16 @@ export async function startDashboard(port: number = DEFAULT_PORT) {
         const streamer = getStreamer(jobId);
         streamer.addClient(ws as any);
       },
-      message(_ws, _message) {
-        // Input forwarding will be added in Session 4
+      message(ws, message) {
+        const { jobId } = ws.data as { jobId: string };
+        try {
+          const parsed = JSON.parse(String(message));
+          if (parsed.type === "input" && typeof parsed.data === "string") {
+            sendToJob(jobId, parsed.data);
+          }
+        } catch {
+          // Ignore malformed messages
+        }
       },
       close(ws) {
         const { jobId } = ws.data as { jobId: string };
