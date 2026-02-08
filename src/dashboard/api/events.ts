@@ -21,11 +21,17 @@ eventsApi.get("/", (c) => {
     // Forward state changes as SSE events
     const onChange = async (event: StateEvent) => {
       try {
+        let data: any;
+        if (event.type === "metrics_update") {
+          data = event.metrics;
+        } else if (event.type === "hook_event") {
+          data = event.event;
+        } else {
+          data = (event as any).job;
+        }
         await stream.writeSSE({
           event: event.type,
-          data: JSON.stringify(
-            event.type === "metrics_update" ? event.metrics : (event as any).job
-          ),
+          data: JSON.stringify(data),
         });
       } catch {
         // Client disconnected

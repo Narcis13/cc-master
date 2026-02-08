@@ -9,9 +9,9 @@
 
 ## Current Status
 
-**Next session:** Session 5 - Hooks Integration
-**Last completed:** Session 4 - Bidirectional Communication
-**Overall progress:** 5 / 7 sessions
+**Next session:** Session 6 - Analytics + Polish
+**Last completed:** Session 5 - Hooks Integration
+**Overall progress:** 6 / 7 sessions
 
 ---
 
@@ -142,19 +142,35 @@
 
 ---
 
-### Session 5: Hooks Integration — PENDING
+### Session 5: Hooks Integration — COMPLETE
 
 **Goal:** Real-time event timeline from Claude Code hooks.
 
 **Tasks:**
-- [ ] `~/.cc-agent/hooks/relay-event.sh` — relay script
-- [ ] `src/dashboard/hooks-manager.ts` — install/remove
-- [ ] `src/dashboard/events.ts` — JSONL tail-follow
-- [ ] `--setup-hooks` / `--remove-hooks` CLI commands
-- [ ] `ui/src/components/Timeline.tsx`
-- [ ] `ui/src/components/NotificationCenter.tsx`
-- [ ] Verify with hooks enabled
+- [x] `src/dashboard/hooks-relay.sh` — relay script (copies to `~/.cc-agent/hooks/`)
+- [x] `src/dashboard/hooks-manager.ts` — install/remove hooks in `~/.claude/settings.json`
+- [x] `src/dashboard/events-reader.ts` — JSONL tail-follow with byte-offset tracking
+- [x] `src/dashboard/api/hook-events.ts` — GET /api/hook-events REST endpoint
+- [x] Hook events wired into DashboardState + SSE stream (`hook_event` event type)
+- [x] `cc-agent setup-hooks` / `cc-agent remove-hooks` CLI commands
+- [x] `ui/src/components/Timeline.tsx` — chronological event timeline with filters
+- [x] `ui/src/components/NotificationCenter.tsx` — alerts panel with severity/categories
+- [x] Topbar navigation (Jobs / Timeline / Alerts) with notification badge
+- [x] Activity indicators on job cards (shows latest tool call for running jobs)
+- [x] Per-job timeline in JobDetail sidebar
+- [x] useJobs hook extended with hookEvents, notifications, read/dismiss actions
+- [x] Server starts, UI builds, all endpoints return valid JSON
 - [ ] Commit
+
+**Notes:**
+- Relay script at `src/dashboard/hooks-relay.sh` gets copied to `~/.cc-agent/hooks/relay-event.sh` on install
+- Hooks manager is idempotent — re-running `setup-hooks` skips already installed hooks
+- EventsReader uses same byte-offset pattern as TerminalStreamer — only reads new lines
+- Notifications generated client-side from job state transitions (no server-side notification state)
+- Timeline supports "All / Tools / Lifecycle" filters
+- NotificationCenter supports "All / Completions / Errors / Info" filters
+- `hook_event` SSE event type added alongside existing job/metrics events
+- Activity indicator shows pulsing dot + tool name (e.g. "Using Bash...") on running job cards
 
 ---
 
@@ -196,6 +212,12 @@ _Record decisions here as they're made during implementation:_
 | Actions API route | Separate `/api/actions/` Hono sub-app | 4 | Keeps read (jobs) and write (actions) routes cleanly separated |
 | Kill UX | Inline two-step confirm (not modal) | 4 | Faster than modal; visible in context of the job header |
 | WS input forwarding | Parse JSON `{ type, data }` in message handler | 4 | Matches PRD protocol; extensible for future message types |
+| Relay script location | `src/dashboard/hooks-relay.sh` copied to `~/.cc-agent/hooks/` on install | 5 | Script lives in repo for versioning; installed to user's home for hooks to find |
+| Event file format | JSONL (one JSON object per line) at `~/.cc-agent/events.jsonl` | 5 | Append-only, easy to tail-follow, matches PRD spec |
+| Events reader pattern | Byte-offset tail-follow (same as terminal-stream.ts) | 5 | Proven pattern; only reads new data; handles file truncation |
+| Notifications | Client-side generation from job state transitions | 5 | No server-side notification state needed; simpler, stateless |
+| Topbar navigation | Hash-based tabs (Jobs / Timeline / Alerts) | 5 | Extends existing hash routing; no new router needed |
+| Hook event SSE type | New `hook_event` event type on SSE stream | 5 | Keeps hook events separate from job events; UI can handle independently |
 
 ## Known Issues
 
@@ -232,3 +254,9 @@ _Track new files as they're created:_
 - `src/dashboard/api/actions.ts` — POST endpoints for send, kill, create jobs
 - `ui/src/components/MessageInput.tsx` — Send message input bar
 - `ui/src/components/NewJobForm.tsx` — New agent modal form
+- `src/dashboard/hooks-relay.sh` — Hook relay bash script
+- `src/dashboard/hooks-manager.ts` — Install/remove hooks in ~/.claude/settings.json
+- `src/dashboard/events-reader.ts` — JSONL tail-follow reader with byte-offset tracking
+- `src/dashboard/api/hook-events.ts` — GET /api/hook-events REST endpoint
+- `ui/src/components/Timeline.tsx` — Chronological event timeline
+- `ui/src/components/NotificationCenter.tsx` — Alerts panel with severity filtering

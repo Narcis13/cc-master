@@ -1,6 +1,6 @@
 import { h } from "preact";
 import { useState, useEffect } from "preact/hooks";
-import type { JobEntry } from "../hooks/useJobs";
+import type { JobEntry, HookEvent } from "../hooks/useJobs";
 import { formatDuration, formatTokens } from "../lib/format";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -10,7 +10,22 @@ const STATUS_LABELS: Record<string, string> = {
   failed: "Failed",
 };
 
-export function JobCard({ job }: { job: JobEntry }) {
+function formatActivity(event: HookEvent): string {
+  if (event.event_type === "PreToolUse" && event.tool_name) {
+    return `Using ${event.tool_name}...`;
+  }
+  if (event.event_type === "PostToolUse" && event.tool_name) {
+    return `${event.tool_name} done`;
+  }
+  if (event.event_type === "PostToolUseFailure" && event.tool_name) {
+    return `${event.tool_name} failed`;
+  }
+  if (event.event_type === "PreCompact") return "Compacting context...";
+  if (event.event_type === "Stop") return "Thinking complete";
+  return event.event_type;
+}
+
+export function JobCard({ job, activity }: { job: JobEntry; activity?: HookEvent }) {
   const [elapsed, setElapsed] = useState(job.elapsed_ms);
 
   // Live-tick elapsed for running jobs
@@ -46,6 +61,13 @@ export function JobCard({ job }: { job: JobEntry }) {
       </div>
 
       <p class="job-prompt">{job.prompt}</p>
+
+      {activity && job.status === "running" && (
+        <div class="job-activity">
+          <span class="activity-indicator" />
+          <span class="activity-text">{formatActivity(activity)}</span>
+        </div>
+      )}
 
       {job.tokens && (
         <div class="job-tokens">

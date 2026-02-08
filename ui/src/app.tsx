@@ -4,9 +4,21 @@ import { useJobs } from "./hooks/useJobs";
 import { Dashboard } from "./components/Dashboard";
 import { JobDetail } from "./components/JobDetail";
 import { NewJobForm } from "./components/NewJobForm";
+import { Timeline } from "./components/Timeline";
+import { NotificationCenter } from "./components/NotificationCenter";
 
 export function App() {
-  const { jobs, metrics, connected } = useJobs();
+  const {
+    jobs,
+    metrics,
+    connected,
+    hookEvents,
+    notifications,
+    unreadCount,
+    markNotificationRead,
+    markAllRead,
+    dismissNotification,
+  } = useJobs();
   const [route, setRoute] = useState(window.location.hash || "#/");
   const [showNewJob, setShowNewJob] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -43,22 +55,45 @@ export function App() {
   }, []);
 
   const jobMatch = route.match(/^#\/jobs\/(.+)$/);
+  const isTimeline = route === "#/timeline";
+  const isNotifications = route === "#/notifications";
 
   return (
     <div class="shell">
       <header class="topbar">
         <a href="#/" class="topbar-title">CC-Agent Dashboard</a>
         <span class="topbar-version">v1.0</span>
+        <nav class="topbar-nav">
+          <a href="#/" class={`topbar-nav-link ${!jobMatch && !isTimeline && !isNotifications ? "active" : ""}`}>
+            Jobs
+          </a>
+          <a href="#/timeline" class={`topbar-nav-link ${isTimeline ? "active" : ""}`}>
+            Timeline
+          </a>
+          <a href="#/notifications" class={`topbar-nav-link ${isNotifications ? "active" : ""}`}>
+            Alerts
+            {unreadCount > 0 && <span class="notification-badge">{unreadCount}</span>}
+          </a>
+        </nav>
         <button class="btn btn--primary btn--sm topbar-new" onClick={() => setShowNewJob(true)}>
           + New Agent
         </button>
         <span class={`connection-dot ${connected ? "connected" : "disconnected"}`} />
       </header>
       <main class="content">
-        {jobMatch ? (
-          <JobDetail jobId={jobMatch[1]} jobs={jobs} />
+        {isTimeline ? (
+          <Timeline events={hookEvents} />
+        ) : isNotifications ? (
+          <NotificationCenter
+            notifications={notifications}
+            onMarkAllRead={markAllRead}
+            onDismiss={dismissNotification}
+            onMarkRead={markNotificationRead}
+          />
+        ) : jobMatch ? (
+          <JobDetail jobId={jobMatch[1]} jobs={jobs} hookEvents={hookEvents} />
         ) : (
-          <Dashboard jobs={jobs} metrics={metrics} />
+          <Dashboard jobs={jobs} metrics={metrics} hookEvents={hookEvents} />
         )}
       </main>
 
@@ -69,7 +104,7 @@ export function App() {
           <div class="modal modal--sm" onClick={(e) => e.stopPropagation()}>
             <div class="modal-header">
               <h2>Keyboard Shortcuts</h2>
-              <button class="modal-close" onClick={() => setShowHelp(false)}>✕</button>
+              <button class="modal-close" onClick={() => setShowHelp(false)}>x</button>
             </div>
             <div class="modal-body">
               <div class="shortcut-list">

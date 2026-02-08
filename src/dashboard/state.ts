@@ -6,6 +6,7 @@ import { watch, type FSWatcher } from "fs";
 import { config } from "../config.ts";
 import { getJobsJson, loadJob, refreshJobStatus, type JobsJsonEntry, type JobsJsonOutput } from "../jobs.ts";
 import { mkdirSync } from "fs";
+import { getEventsReader, type HookEvent } from "./events-reader.ts";
 
 export type StateEvent =
   | { type: "snapshot"; jobs: JobsJsonEntry[]; metrics: DashboardMetrics }
@@ -13,7 +14,8 @@ export type StateEvent =
   | { type: "job_created"; job: JobsJsonEntry }
   | { type: "job_completed"; job: JobsJsonEntry }
   | { type: "job_failed"; job: JobsJsonEntry }
-  | { type: "metrics_update"; metrics: DashboardMetrics };
+  | { type: "metrics_update"; metrics: DashboardMetrics }
+  | { type: "hook_event"; event: HookEvent };
 
 export interface DashboardMetrics {
   totalJobs: number;
@@ -32,6 +34,7 @@ export class DashboardState extends EventEmitter {
   private refreshTimer: Timer | null = null;
   private startedAt = Date.now();
   private debounceTimer: Timer | null = null;
+  private onHookEvent: ((event: HookEvent) => void) | null = null;
 
   start() {
     // Initial load
@@ -47,6 +50,13 @@ export class DashboardState extends EventEmitter {
 
     // Periodic refresh for running jobs (catches tmux session completion)
     this.refreshTimer = setInterval(() => this.refresh(), 5000);
+
+    // Start listening for hook events
+    const eventsReader = getEventsReader();
+    this.onHookEvent = (event: HookEvent) => {
+      this.emit("change", { type: "hook_event", event } satisfies StateEvent);
+    };
+    eventsReader.on("event", this.onHookEvent);
   }
 
   stop() {
@@ -54,6 +64,11 @@ export class DashboardState extends EventEmitter {
     this.watcher = null;
     if (this.refreshTimer) clearInterval(this.refreshTimer);
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    if (this.onHookEvent) {
+      const eventsReader = getEventsReader();
+      eventsReader.off("event", this.onHookEvent);
+      this.onHookEvent = null;
+    }
   }
 
   getSnapshot(): { jobs: JobsJsonEntry[]; metrics: DashboardMetrics } {

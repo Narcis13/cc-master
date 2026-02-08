@@ -1,16 +1,32 @@
 import { h } from "preact";
 import { useState } from "preact/hooks";
-import type { JobEntry, Metrics } from "../hooks/useJobs";
+import type { JobEntry, Metrics, HookEvent } from "../hooks/useJobs";
 import { StatusBar } from "./StatusBar";
 import { JobCard } from "./JobCard";
 
 type StatusFilter = "all" | "running" | "completed" | "failed" | "pending";
 type SortField = "recent" | "status" | "elapsed";
 
-export function Dashboard({ jobs, metrics }: { jobs: JobEntry[]; metrics: Metrics | null }) {
+export function Dashboard({
+  jobs,
+  metrics,
+  hookEvents,
+}: {
+  jobs: JobEntry[];
+  metrics: Metrics | null;
+  hookEvents: HookEvent[];
+}) {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortField>("recent");
   const [search, setSearch] = useState("");
+
+  // Build a map of latest activity per job from hook events
+  const jobActivity = new Map<string, HookEvent>();
+  for (const event of hookEvents) {
+    if (event.job_id && !jobActivity.has(event.job_id)) {
+      jobActivity.set(event.job_id, event);
+    }
+  }
 
   const filtered = jobs.filter((j) => {
     if (filter !== "all" && j.status !== filter) return false;
@@ -75,7 +91,7 @@ export function Dashboard({ jobs, metrics }: { jobs: JobEntry[]; metrics: Metric
       ) : (
         <div class="job-grid">
           {sorted.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <JobCard key={job.id} job={job} activity={jobActivity.get(job.id)} />
           ))}
         </div>
       )}

@@ -5,6 +5,7 @@ import { jobsApi } from "./api/jobs.ts";
 import { eventsApi } from "./api/events.ts";
 import { metricsApi } from "./api/metrics.ts";
 import { actionsApi } from "./api/actions.ts";
+import { hookEventsApi } from "./api/hook-events.ts";
 import { getDashboardState } from "./state.ts";
 import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
 import { sendToJob } from "../jobs.ts";
@@ -24,6 +25,7 @@ export function createDashboardApp() {
   app.route("/api/events", eventsApi);
   app.route("/api/metrics", metricsApi);
   app.route("/api/actions", actionsApi);
+  app.route("/api/hook-events", hookEventsApi);
 
   // Serve built UI assets
   app.use("/*", serveStatic({ root: uiDist }));

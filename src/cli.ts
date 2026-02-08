@@ -5,6 +5,7 @@
 
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
 import { startDashboard, DEFAULT_PORT } from "./dashboard/server.ts";
+import { installHooks, removeHooks, hooksInstalled } from "./dashboard/hooks-manager.ts";
 import {
   startJob,
   loadJob,
@@ -40,6 +41,8 @@ Usage:
   cc-agent kill <jobId>               Kill running job
   cc-agent clean                      Clean old completed jobs
   cc-agent dashboard [--port <n>]      Launch monitoring dashboard
+  cc-agent setup-hooks                Install Claude Code hooks for event tracking
+  cc-agent remove-hooks               Remove installed hooks
   cc-agent health                     Check tmux and claude code availability
 
 Options:
@@ -607,6 +610,29 @@ async function main() {
         await startDashboard(dashPort);
         // Keep process alive
         await new Promise(() => {});
+        break;
+      }
+
+      case "setup-hooks": {
+        const result = installHooks();
+        if (result.installed.length > 0) {
+          console.log(`Installed hooks: ${result.installed.join(", ")}`);
+        }
+        if (result.skipped.length > 0) {
+          console.log(`Already installed: ${result.skipped.join(", ")}`);
+        }
+        console.log("Hooks will relay events to ~/.cc-agent/events.jsonl");
+        break;
+      }
+
+      case "remove-hooks": {
+        const result = removeHooks();
+        if (result.removed.length > 0) {
+          console.log(`Removed hooks: ${result.removed.join(", ")}`);
+        }
+        if (result.notFound.length > 0) {
+          console.log(`Not found: ${result.notFound.join(", ")}`);
+        }
         break;
       }
 
