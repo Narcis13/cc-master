@@ -4,7 +4,7 @@
 // Designed for Claude Code orchestration with bidirectional communication
 
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
-import { startDashboard, DEFAULT_PORT } from "./dashboard/server.ts";
+import { startDashboard, ensureDashboardRunning, stopDashboard, DEFAULT_PORT } from "./dashboard/server.ts";
 import { installHooks, removeHooks, hooksInstalled } from "./dashboard/hooks-manager.ts";
 import {
   startJob,
@@ -40,7 +40,8 @@ Usage:
   cc-agent sessions                   List active tmux sessions
   cc-agent kill <jobId>               Kill running job
   cc-agent clean                      Clean old completed jobs
-  cc-agent dashboard [--port <n>]      Launch monitoring dashboard
+  cc-agent dashboard [--port <n>]      Launch monitoring dashboard (also auto-starts with agents)
+  cc-agent dashboard-stop               Stop running dashboard
   cc-agent setup-hooks                Install Claude Code hooks for event tracking
   cc-agent remove-hooks               Remove installed hooks
   cc-agent health                     Check tmux and claude code availability
@@ -359,6 +360,9 @@ async function main() {
           cwd: options.dir,
         });
 
+        // Auto-start dashboard if not already running
+        ensureDashboardRunning();
+
         console.log(`Job started: ${job.id}`);
         console.log(`Model: ${job.model} (${job.reasoningEffort})`);
         console.log(`Working dir: ${job.cwd}`);
@@ -613,6 +617,15 @@ async function main() {
         break;
       }
 
+      case "dashboard-stop": {
+        if (stopDashboard()) {
+          console.log("Dashboard stopped");
+        } else {
+          console.log("No dashboard running");
+        }
+        break;
+      }
+
       case "setup-hooks": {
         const result = installHooks();
         if (result.installed.length > 0) {
@@ -677,6 +690,9 @@ async function main() {
             parentSessionId: options.parentSessionId ?? undefined,
             cwd: options.dir,
           });
+
+          // Auto-start dashboard if not already running
+          ensureDashboardRunning();
 
           console.log(`Job started: ${job.id}`);
           console.log(`tmux session: ${job.tmuxSession}`);

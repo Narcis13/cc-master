@@ -63,7 +63,8 @@ cc-agent capture <jobId>
 # 6. Send it a follow-up message
 cc-agent send <jobId> "Also check for security vulnerabilities"
 
-# 7. Launch the web dashboard
+# 7. The web dashboard auto-started at http://localhost:3131
+#    Or launch manually:
 cc-agent dashboard
 ```
 
@@ -340,12 +341,17 @@ cc-agent health
 
 ### Dashboard
 
+The dashboard **auto-starts in the background** whenever you start an agent with `cc-agent start`. No separate command needed -- just start an agent and open `http://localhost:3131`.
+
 ```bash
-# Launch the web dashboard (default: http://localhost:3131)
+# Launches automatically with agents, or start manually:
 cc-agent dashboard
 
 # Use a custom port
 cc-agent dashboard --port 8080
+
+# Stop the running dashboard
+cc-agent dashboard-stop
 ```
 
 ### Event Hooks
@@ -510,12 +516,15 @@ CC Orchestrator includes a full web dashboard for real-time monitoring and contr
 
 ### Launching
 
+The dashboard **auto-starts in the background** the first time you run `cc-agent start`. Subsequent agent starts detect the running dashboard and skip re-launching. You can also start/stop it manually:
+
 ```bash
-cc-agent dashboard              # http://localhost:3131
+cc-agent dashboard              # start manually (foreground, http://localhost:3131)
 cc-agent dashboard --port 8080  # custom port
+cc-agent dashboard-stop         # stop the running dashboard
 ```
 
-The dashboard auto-builds a Preact frontend on startup (via Bun.build) and serves it alongside a REST/SSE/WebSocket API. No separate build step needed.
+The dashboard auto-builds a Preact frontend on startup (via Bun.build) and serves it alongside a REST/SSE/WebSocket API. No separate build step needed. A pidfile at `~/.cc-agent/dashboard.pid` tracks the running process.
 
 ### Dashboard Views
 
@@ -878,6 +887,8 @@ Next: Write PRD
 | Jobs directory | `~/.cc-agent/jobs/` | Job metadata, prompts, and logs |
 | tmux prefix | `cc-agent` | Session naming prefix |
 | Dashboard port | 3131 | Default web dashboard port |
+| Dashboard auto-start | enabled | Dashboard starts automatically with agents |
+| Dashboard pidfile | `~/.cc-agent/dashboard.pid` | Tracks running dashboard process |
 | Database | `~/.cc-agent/dashboard.db` | SQLite for historical analytics |
 
 ### Storage Layout
@@ -891,6 +902,7 @@ Next: Write PRD
   hooks/
     relay-event.sh      # Hook relay script (installed by setup-hooks)
   events.jsonl          # Hook events stream (appended by relay script)
+  dashboard.pid         # PID of the running dashboard process
   dashboard.db          # SQLite database for analytics persistence
 ```
 
@@ -968,6 +980,10 @@ cc-agent dashboard --port 3132
 
 # Check that ui/src/ exists (needed for Bun.build)
 ls ui/src/index.tsx
+
+# Stale pidfile? Stop and restart:
+cc-agent dashboard-stop
+cc-agent dashboard
 ```
 
 ### Post-Context-Compaction Recovery
@@ -1012,7 +1028,7 @@ src/files.ts                File loading, glob matching, codebase map resolution
 src/session-parser.ts       Parse Claude session files for token usage + files modified
   |
 src/dashboard/
-  server.ts                 Hono web server + Bun.serve with WebSocket upgrade
+  server.ts                 Hono web server + Bun.serve with WebSocket upgrade + auto-start/stop
   state.ts                  Reactive state manager (fs.watch + polling + EventEmitter)
   db.ts                     SQLite persistence (bun:sqlite -- zero external deps)
   terminal-stream.ts        WebSocket terminal streaming (byte-offset delta reads)

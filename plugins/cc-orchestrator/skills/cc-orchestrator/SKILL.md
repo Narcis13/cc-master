@@ -98,7 +98,7 @@ Before cc-agent can run, three things must be installed:
 2. **Bun** - JavaScript runtime (runs the CLI)
 3. **Claude Code CLI** - The coding agent being orchestrated
 
-The user must also have an **Anthropic API key** configured so agents can make API calls.
+
 
 ### Quick Check
 

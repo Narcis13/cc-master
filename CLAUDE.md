@@ -25,7 +25,7 @@ bun run src/cli.ts health
 
 | File | Purpose |
 |------|---------|
-| `src/cli.ts` | CLI commands and argument parsing |
+| `src/cli.ts` | CLI commands, argument parsing, dashboard auto-start |
 | `src/jobs.ts` | Job lifecycle and persistence |
 | `src/tmux.ts` | tmux session management |
 | `src/config.ts` | Configuration constants |
@@ -54,6 +54,8 @@ plugins/cc-orchestrator/            # the plugin
 ## Notes
 
 - Jobs stored in `~/.cc-agent/jobs/`
+- Dashboard auto-starts in background when agents are started (pidfile: `~/.cc-agent/dashboard.pid`)
+- Stop dashboard with `cc-agent dashboard-stop`
 - Uses `script` command for output logging
 - Completion detected via marker string in output
 - Bun is the TypeScript runtime - never use npm/yarn/pnpm for running

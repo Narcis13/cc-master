@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import path from "path";
+import fs from "fs";
+import { spawn } from "child_process";
 import { jobsApi } from "./api/jobs.ts";
 import { eventsApi } from "./api/events.ts";
 import { metricsApi } from "./api/metrics.ts";
@@ -11,6 +13,47 @@ import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
 import { sendToJob } from "../jobs.ts";
 
 export const DEFAULT_PORT = 3131;
+const PIDFILE = path.join(process.env.HOME!, ".cc-agent", "dashboard.pid");
+
+function isDashboardRunning(): boolean {
+  try {
+    const pid = parseInt(fs.readFileSync(PIDFILE, "utf-8").trim(), 10);
+    // Signal 0 checks if process exists without killing it
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function stopDashboard(): boolean {
+  try {
+    const pid = parseInt(fs.readFileSync(PIDFILE, "utf-8").trim(), 10);
+    process.kill(pid, "SIGTERM");
+    try { fs.unlinkSync(PIDFILE); } catch {}
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function ensureDashboardRunning(port: number = DEFAULT_PORT): void {
+  if (isDashboardRunning()) return;
+
+  const cliPath = path.resolve(import.meta.dir, "../cli.ts");
+  const child = spawn("bun", ["run", cliPath, "dashboard", "--port", String(port)], {
+    detached: true,
+    stdio: "ignore",
+  });
+
+  child.unref();
+
+  if (child.pid) {
+    fs.mkdirSync(path.dirname(PIDFILE), { recursive: true });
+    fs.writeFileSync(PIDFILE, String(child.pid));
+    console.log(`Dashboard started in background (http://localhost:${port})`);
+  }
+}
 
 export function createDashboardApp() {
   const app = new Hono();
@@ -44,6 +87,16 @@ export function createDashboardApp() {
 }
 
 export async function startDashboard(port: number = DEFAULT_PORT) {
+  // Write pidfile so other processes know we're running
+  fs.mkdirSync(path.dirname(PIDFILE), { recursive: true });
+  fs.writeFileSync(PIDFILE, String(process.pid));
+
+  // Clean up pidfile on exit
+  const cleanPid = () => { try { fs.unlinkSync(PIDFILE); } catch {} };
+  process.on("exit", cleanPid);
+  process.on("SIGINT", () => { cleanPid(); process.exit(0); });
+  process.on("SIGTERM", () => { cleanPid(); process.exit(0); });
+
   // Build UI first
   const projectRoot = path.resolve(import.meta.dir, "../..");
   const buildResult = await buildUI(projectRoot);

@@ -177,7 +177,7 @@ cc-agent/
 **Commands**:
 | Command | Description |
 |---------|-------------|
-| `start <prompt>` | Start new agent job |
+| `start <prompt>` | Start new agent job (auto-starts dashboard) |
 | `status <id>` | Show job details |
 | `send <id> <msg>` | Send message to running job |
 | `capture <id> [lines]` | Get recent output (default: 50) |
@@ -189,6 +189,8 @@ cc-agent/
 | `kill <id>` | Terminate job |
 | `clean` | Remove jobs older than 7 days |
 | `delete <id>` | Delete specific job |
+| `dashboard` | Launch web dashboard (foreground) |
+| `dashboard-stop` | Stop running dashboard |
 | `health` | Check tmux and claude availability |
 
 **Options**:
