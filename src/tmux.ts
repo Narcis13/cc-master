@@ -30,6 +30,29 @@ export function isTmuxAvailable(): boolean {
 }
 
 /**
+ * Resolve the full path to the claude binary.
+ * Shell aliases (e.g. ~/.claude/local/claude) aren't available in tmux sessions,
+ * so we resolve the path here to avoid falling back to an older system install.
+ */
+function resolveClaudePath(): string {
+  try {
+    // Try the alias target first (where claude update installs)
+    const localPath = `${process.env.HOME}/.claude/local/claude`;
+    const fs = require("fs");
+    if (fs.existsSync(localPath)) {
+      return localPath;
+    }
+  } catch {}
+
+  try {
+    // Fall back to which (resolves PATH but not aliases)
+    return execSync("which claude", { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+  } catch {
+    return "claude"; // last resort
+  }
+}
+
+/**
  * Check if a tmux session exists
  */
 export function sessionExists(sessionName: string): boolean {
@@ -70,15 +93,18 @@ export function createSession(options: {
 
     // Map sandbox to tool restrictions for read-only mode
     if (options.sandbox === "read-only") {
-      claudeArgs.push(`--tools`, `"Read,Glob,Grep,LS,WebFetch,WebSearch"`);
+      claudeArgs.push(`--allowedTools`, `"Read,Glob,Grep,LS,WebFetch,WebSearch"`);
     }
+
+    // Resolve full path to claude binary (aliases aren't available in tmux)
+    const claudeBin = resolveClaudePath();
 
     // Create tmux session with claude running
     // Use script to capture all output, and keep shell alive after claude exits
     // This allows us to capture the output even after completion
     // Create detached session that runs claude and stays open after it exits
     // Using script to log all terminal output
-    const shellCmd = `script -q "${logFile}" claude ${claudeArgs.join(" ")}; echo "\\n\\n[cc-agent: Session complete. Press Enter to close.]"; read`;
+    const shellCmd = `script -q "${logFile}" ${claudeBin} ${claudeArgs.join(" ")}; echo "\\n\\n[cc-agent: Session complete. Press Enter to close.]"; read`;
 
     execSync(
       `tmux new-session -d -s "${sessionName}" -c "${options.cwd}" '${shellCmd}'`,
