@@ -23,7 +23,7 @@ import {
   getJobsJson,
 } from "./jobs.ts";
 import { loadFiles, formatPromptWithFiles, estimateTokens, loadCodebaseMap } from "./files.ts";
-import { isTmuxAvailable, listSessions } from "./tmux.ts";
+import { isTmuxAvailable, listSessions, resolveClaudePath } from "./tmux.ts";
 
 const HELP = `
 CC Agent - Delegate tasks to Claude Code agents (tmux-based)
@@ -292,8 +292,9 @@ async function main() {
         // Check claude
         const { execSync } = await import("child_process");
         try {
-          const version = execSync("claude --version", { encoding: "utf-8" }).trim();
-          console.log(`claude: ${version}`);
+          const claudeBin = resolveClaudePath();
+          const version = execSync(`${claudeBin} --version`, { encoding: "utf-8" }).trim();
+          console.log(`claude: ${version} (${claudeBin})`);
         } catch {
           console.error("Claude Code CLI not found");
           console.error("Install with: npm install -g @anthropic-ai/claude-code");

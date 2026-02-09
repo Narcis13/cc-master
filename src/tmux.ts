@@ -34,7 +34,7 @@ export function isTmuxAvailable(): boolean {
  * Shell aliases (e.g. ~/.claude/local/claude) aren't available in tmux sessions,
  * so we resolve the path here to avoid falling back to an older system install.
  */
-function resolveClaudePath(): string {
+export function resolveClaudePath(): string {
   try {
     // Try the alias target first (where claude update installs)
     const localPath = `${process.env.HOME}/.claude/local/claude`;
