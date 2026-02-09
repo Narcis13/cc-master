@@ -141,6 +141,25 @@ export ANTHROPIC_API_KEY="your-key-here"
 
 **Platform support:** macOS and Linux. Windows users should use WSL.
 
+### Updating
+
+After installation, update to the latest version with:
+
+```
+/cco-update
+```
+
+This pulls the latest code from GitHub into both the runtime (`~/.cc-orchestrator/`) and the plugin (`~/.claude/plugins/marketplaces/cc-orchestrator-marketplace/`), then reinstalls dependencies. Restart Claude Code after updating for skill changes to take effect.
+
+If you installed cc-orchestrator before `/cco-update` was available (before v1.1), run this once to bootstrap the update skill:
+
+```bash
+git -C ~/.cc-orchestrator pull origin main
+git -C ~/.claude/plugins/marketplaces/cc-orchestrator-marketplace pull origin main
+```
+
+Then restart Claude Code and use `/cco-update` going forward.
+
 ---
 
 ## Core Concepts
