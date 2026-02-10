@@ -9,6 +9,7 @@ introspect yourself as a coding agent (best in the world)  and knowing your inte
 
   - hooks
   - parse context usage
+  - prompt too big when starting cc-agents + more autonomous 20 sec for questions and after that make decision itself
   - send /clear or /usage to agents
   - develop an UI to see whats inside sqlite database
   - run orchestrator from dashboard to manage it
