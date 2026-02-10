@@ -20,14 +20,8 @@ export function getDb(): Database {
 }
 
 function initSchema(db: Database) {
-  // Drop and recreate job_history, tool_calls, job_subagents for clean schema.
-  // events and daily_metrics are preserved (no schema changes).
   db.exec(`
-    DROP TABLE IF EXISTS job_history;
-    DROP TABLE IF EXISTS tool_calls;
-    DROP TABLE IF EXISTS job_subagents;
-
-    CREATE TABLE job_history (
+    CREATE TABLE IF NOT EXISTS job_history (
       id TEXT PRIMARY KEY,
       status TEXT NOT NULL,
       model TEXT NOT NULL,
@@ -57,7 +51,7 @@ function initSchema(db: Database) {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE tool_calls (
+    CREATE TABLE IF NOT EXISTS tool_calls (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       job_id TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -67,10 +61,10 @@ function initSchema(db: Database) {
       output_preview TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
-    CREATE INDEX idx_tool_calls_job ON tool_calls(job_id);
-    CREATE INDEX idx_tool_calls_name ON tool_calls(name);
+    CREATE INDEX IF NOT EXISTS idx_tool_calls_job ON tool_calls(job_id);
+    CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(name);
 
-    CREATE TABLE job_subagents (
+    CREATE TABLE IF NOT EXISTS job_subagents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       job_id TEXT NOT NULL,
       subagent_id TEXT NOT NULL,
@@ -78,7 +72,7 @@ function initSchema(db: Database) {
       message_count INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
-    CREATE INDEX idx_subagents_job ON job_subagents(job_id);
+    CREATE INDEX IF NOT EXISTS idx_subagents_job ON job_subagents(job_id);
 
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
