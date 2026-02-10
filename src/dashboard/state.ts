@@ -4,10 +4,10 @@
 import { EventEmitter } from "events";
 import { watch, type FSWatcher } from "fs";
 import { config } from "../config.ts";
-import { getJobsJson, loadJob, refreshJobStatus, type JobsJsonEntry, type JobsJsonOutput } from "../jobs.ts";
+import { getJobsJson, getJobSession, loadJob, refreshJobStatus, type JobsJsonEntry, type JobsJsonOutput } from "../jobs.ts";
 import { mkdirSync } from "fs";
 import { getEventsReader, type HookEvent } from "./events-reader.ts";
-import { recordJobCompletion, recordHookEvent } from "./db.ts";
+import { recordJobCompletion, recordHookEvent, truncatePreview } from "./db.ts";
 
 export type StateEvent =
   | { type: "snapshot"; jobs: JobsJsonEntry[]; metrics: DashboardMetrics }
@@ -121,12 +121,60 @@ export class DashboardState extends EventEmitter {
 
   private persistJob(job: JobsJsonEntry) {
     try {
+      // Load raw Job for reuse tracking
+      const rawJob = loadJob(job.id);
+
+      // Load full session data for tool calls, messages, subagents, session_id
+      const fullSession = job.has_session ? getJobSession(job.id) : null;
+
+      // Compute message counts from session
+      let messageCount = 0;
+      let userMessageCount = 0;
+      if (fullSession?.messages) {
+        messageCount = fullSession.messages.length;
+        userMessageCount = fullSession.messages.filter(m => m.role === "user").length;
+      }
+
+      // Build tool_calls array with truncated previews
+      const toolCallsForDb = (fullSession?.tool_calls ?? []).map(tc => ({
+        name: tc.name,
+        is_error: tc.is_error,
+        timestamp: tc.timestamp,
+        input_preview: truncatePreview(tc.input),
+        output_preview: truncatePreview(tc.output),
+      }));
+
+      // Build subagents array from session data
+      // Subagents are detected by Task tool calls that spawn subagents
+      const subagentMap = new Map<string, { tool_calls: number; messages: number }>();
+      if (fullSession?.tool_calls) {
+        for (const tc of fullSession.tool_calls) {
+          if (tc.name === "Task" && tc.input && typeof tc.input === "object") {
+            const inp = tc.input as Record<string, unknown>;
+            const name = typeof inp.name === "string" ? inp.name : typeof inp.description === "string" ? inp.description : null;
+            if (name) {
+              const existing = subagentMap.get(name) ?? { tool_calls: 0, messages: 0 };
+              existing.tool_calls++;
+              subagentMap.set(name, existing);
+            }
+          }
+        }
+      }
+      const subagentsForDb = Array.from(subagentMap.entries()).map(([id, stats]) => ({
+        id,
+        tool_call_count: stats.tool_calls,
+        message_count: stats.messages,
+      }));
+
       recordJobCompletion({
         id: job.id,
         status: job.status,
         model: job.model,
         reasoning: job.reasoning,
         cwd: job.cwd,
+        prompt: job.prompt,
+        summary: job.summary,
+        session_id: fullSession?.session_id ?? null,
         started_at: job.started_at,
         completed_at: job.completed_at,
         elapsed_ms: job.elapsed_ms,
@@ -134,10 +182,20 @@ export class DashboardState extends EventEmitter {
           input: job.tokens.input,
           output: job.tokens.output,
           context_used_pct: job.tokens.context_used_pct,
+          context_window: job.tokens.context_window,
         } : null,
+        estimated_cost: job.estimated_cost,
+        tool_call_count: job.tool_call_count,
+        failed_tool_calls: job.failed_tool_calls,
+        primary_tool: job.primary_tool,
         files_modified: job.files_modified,
-        prompt: job.prompt,
-        summary: job.summary,
+        message_count: messageCount,
+        user_message_count: userMessageCount,
+        has_session: job.has_session,
+        reuse_count: rawJob?.reuseCount ?? 0,
+        original_prompt: rawJob?.originalPrompt ?? null,
+        tool_calls: toolCallsForDb,
+        subagents: subagentsForDb,
       });
     } catch (err) {
       console.error("Failed to persist job to SQLite:", err);
