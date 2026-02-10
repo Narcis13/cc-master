@@ -173,6 +173,7 @@ export type JobsJsonEntry = {
   has_session: boolean;
   estimated_cost: number | null;
   failed_tool_calls: number | null;
+  primary_tool: string | null;
 };
 
 export type JobsJsonOutput = {
@@ -204,6 +205,7 @@ export function getJobsJson(): JobsJsonOutput {
     let summary: string | null = null;
     let toolCallCount: number | null = null;
     let failedToolCalls: number | null = null;
+    let primaryTool: string | null = null;
     let cost: number | null = null;
     const hasSession = existsSync(getArchivedSessionPath(effective.id));
 
@@ -221,6 +223,21 @@ export function getJobsJson(): JobsJsonOutput {
         if (fullSession) {
           toolCallCount = fullSession.tool_calls.length;
           failedToolCalls = fullSession.tool_calls.filter(tc => tc.is_error).length;
+
+          // Compute primary tool (most frequently used)
+          if (fullSession.tool_calls.length > 0) {
+            const freq = new Map<string, number>();
+            for (const tc of fullSession.tool_calls) {
+              freq.set(tc.name, (freq.get(tc.name) ?? 0) + 1);
+            }
+            let maxCount = 0;
+            for (const [name, count] of freq) {
+              if (count > maxCount) {
+                maxCount = count;
+                primaryTool = name;
+              }
+            }
+          }
         }
       }
 
@@ -249,6 +266,7 @@ export function getJobsJson(): JobsJsonOutput {
       has_session: hasSession,
       estimated_cost: cost,
       failed_tool_calls: failedToolCalls,
+      primary_tool: primaryTool,
     };
   });
 

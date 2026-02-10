@@ -85,6 +85,32 @@ export function JobCard({ job, activity }: { job: JobEntry; activity?: HookEvent
         </div>
       )}
 
+      {(job.tool_call_count !== null || job.estimated_cost !== null) && (
+        <div class="job-card-enrichments">
+          {job.tool_call_count !== null && (
+            <span class="enrichment-badge enrichment-badge--tools">{job.tool_call_count} tools</span>
+          )}
+          {job.primary_tool && (
+            <span class="enrichment-badge enrichment-badge--primary">{job.primary_tool}</span>
+          )}
+          {job.failed_tool_calls !== null && job.failed_tool_calls > 0 && (
+            <span class="enrichment-badge enrichment-badge--failed">
+              <span class="failed-dot" />
+              {job.failed_tool_calls} failed
+            </span>
+          )}
+          {job.estimated_cost !== null && (
+            <span class={`enrichment-badge enrichment-badge--cost ${
+              job.estimated_cost < 0.5 ? "enrichment-badge--cost-low"
+              : job.estimated_cost < 2 ? "enrichment-badge--cost-mid"
+              : "enrichment-badge--cost-high"
+            }`}>
+              ${job.estimated_cost.toFixed(2)}
+            </span>
+          )}
+        </div>
+      )}
+
       {job.files_modified && job.files_modified.length > 0 && (
         <div class="job-files">
           {job.files_modified.length} file{job.files_modified.length !== 1 ? "s" : ""} modified

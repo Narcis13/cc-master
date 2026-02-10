@@ -334,6 +334,67 @@
   text-align: right;
 }
 
+/* Enrichment badges */
+.job-card-enrichments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.enrichment-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.enrichment-badge--tools {
+  background: rgba(188, 140, 255, 0.12);
+  color: var(--accent);
+}
+
+.enrichment-badge--primary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.enrichment-badge--failed {
+  background: rgba(248, 81, 73, 0.12);
+  color: var(--status-failed);
+}
+
+.enrichment-badge--cost {
+  font-weight: 600;
+}
+
+.enrichment-badge--cost-low {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--status-complete);
+}
+
+.enrichment-badge--cost-mid {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--status-pending);
+}
+
+.enrichment-badge--cost-high {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--status-failed);
+}
+
+.failed-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-failed);
+  flex-shrink: 0;
+}
+
 /* Files & summary */
 .job-files {
   font-size: 12px;

@@ -18,6 +18,7 @@ export type JobEntry = {
   has_session: boolean;
   estimated_cost: number | null;
   failed_tool_calls: number | null;
+  primary_tool: string | null;
 };
 
 export type Metrics = {
