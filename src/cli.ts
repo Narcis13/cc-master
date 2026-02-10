@@ -22,6 +22,9 @@ import {
   Job,
   getJobsJson,
   getJobSession,
+  clearJobContext,
+  getJobUsage,
+  reuseJob,
 } from "./jobs.ts";
 import { resolveFileRefs, formatPromptWithFileRefs, estimateTokens, findCodebaseMapPath } from "./files.ts";
 import { isTmuxAvailable, listSessions, resolveClaudePath } from "./tmux.ts";
@@ -40,6 +43,9 @@ Usage:
   cc-agent session <jobId> [--json]   Show archived session data (tools, messages, tokens)
   cc-agent jobs [--json]              List all jobs
   cc-agent sessions                   List active tmux sessions
+  cc-agent clear <jobId>              Send /clear to agent (reset context)
+  cc-agent usage <jobId>              Send /usage to agent and show token stats
+  cc-agent reuse <jobId> "prompt"     Clear context and assign new task to existing agent
   cc-agent kill <jobId> [--completed]  Kill running job (--completed marks as completed instead of failed)
   cc-agent clean                      Clean old completed jobs
   cc-agent dashboard [--port <n>]      Launch monitoring dashboard (also auto-starts with agents)
@@ -432,6 +438,63 @@ async function main() {
         } else {
           console.error(`Could not send to job ${jobId}`);
           console.error("Job may not be running or tmux session not found");
+          process.exit(1);
+        }
+        break;
+      }
+
+      case "clear": {
+        if (positional.length === 0) {
+          console.error("Error: No job ID provided");
+          process.exit(1);
+        }
+
+        const clearResult = clearJobContext(positional[0]);
+        if (clearResult.success) {
+          console.log(`Sent /clear to ${positional[0]}`);
+          console.log("Context will be reset. Wait a few seconds before sending new tasks.");
+        } else {
+          console.error(`Could not clear context: ${clearResult.error}`);
+          process.exit(1);
+        }
+        break;
+      }
+
+      case "usage": {
+        if (positional.length === 0) {
+          console.error("Error: No job ID provided");
+          process.exit(1);
+        }
+
+        console.error(`Sending /usage to ${positional[0]}... (waiting 2s for output)`);
+        const usageResult = getJobUsage(positional[0]);
+        if (usageResult.success && usageResult.output) {
+          console.log(usageResult.output);
+        } else {
+          console.error(`Could not get usage: ${usageResult.error ?? "no output captured"}`);
+          process.exit(1);
+        }
+        break;
+      }
+
+      case "reuse": {
+        if (positional.length < 2) {
+          console.error("Error: Usage: cc-agent reuse <jobId> \"new prompt\"");
+          process.exit(1);
+        }
+
+        const reuseJobId = positional[0];
+        const newPrompt = positional.slice(1).join(" ");
+
+        console.error(`Reusing agent ${reuseJobId}... (clearing context, then sending new task)`);
+        const reuseResult = reuseJob(reuseJobId, newPrompt);
+        if (reuseResult.success) {
+          const job = loadJob(reuseJobId);
+          console.log(`Agent ${reuseJobId} reused successfully`);
+          console.log(`New task: ${newPrompt.slice(0, 100)}${newPrompt.length > 100 ? "..." : ""}`);
+          console.log(`Reuse count: ${job?.reuseCount ?? 1}`);
+        } else {
+          console.error(`Could not reuse agent: ${reuseResult.error}`);
           process.exit(1);
         }
         break;

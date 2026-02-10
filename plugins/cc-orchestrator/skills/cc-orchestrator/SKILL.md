@@ -201,7 +201,7 @@ Detect where you are based on context:
 ## Core Principles
 
 1. **Gold Standard Quality** - No shortcuts. Security, proper patterns, thorough testing - all of it.
-2. **Always Interactive** - Agents stay open for course correction. Never kill and respawn - send a message to redirect.
+2. **Always Interactive** - Agents stay open for course correction. Never kill and respawn - send a message to redirect, or reuse with `/clear` for a fresh context.
 3. **Parallel Execution** - Multiple Claude instances can spawn multiple Claude Code agents simultaneously.
 4. **Codebase Map Always** - Every agent gets `--map` for context.
 5. **PRDs Drive Implementation** - Complex changes get PRDs in docs/prds/.
@@ -238,6 +238,53 @@ Detect where you are based on context:
 - Send clarifying messages if the agent seems genuinely stuck
 - Let agents finish their work - they are thorough for a reason
 - Trust the process - quality takes time
+
+## Context Management & Agent Reuse
+
+### Context Monitoring
+
+After spawning agents, periodically check `cc-agent jobs --json` — the `context_used_pct` field shows how full each agent's context is (available for both running and completed jobs).
+
+| Context % | Risk Level | Notes |
+|-----------|------------|-------|
+| <70% | Normal | Agent has plenty of room |
+| 70-85% | Warning | Plan to finish current task and reuse or replace |
+| >85% | High | Quality degradation likely. Do NOT send additional complex tasks |
+| >95% | Critical | Context will auto-compact. Quality drops significantly |
+
+### Agent Reuse (Instead of Kill + Respawn)
+
+When an agent completes its task but Claude Code is still running in interactive mode, **reuse it** instead of killing and respawning:
+
+```bash
+cc-agent reuse <jobId> "new task prompt"
+```
+
+This sends `/clear` to reset context, then sends the new task. It is **faster than kill + respawn** because:
+- No tmux session creation overhead
+- No Claude Code startup delay
+- Agent is already warmed up
+
+Reuse for same-type work (research stays research, implementation stays implementation).
+
+To manually check an agent's context state:
+
+```bash
+cc-agent usage <jobId>    # see current token/context stats from Claude Code
+cc-agent clear <jobId>    # just reset context without assigning new work
+```
+
+### Decision Matrix
+
+| Context % | Agent Status | Action |
+|-----------|-------------|--------|
+| <70% | Working | Let it continue |
+| <70% | Idle/Done | Send more work via `cc-agent send` |
+| 70-85% | Working | Let it finish current task |
+| 70-85% | Idle/Done | `cc-agent reuse` with fresh context |
+| >85% | Working | Let it finish, don't add more work |
+| >85% | Idle/Done | `cc-agent reuse` (must clear) |
+| >95% | Any | `cc-agent reuse` or `cc-agent kill --completed` + new agent |
 
 ## Codebase Map: Giving Agents Instant Context
 
@@ -318,6 +365,14 @@ tmux attach -t cc-agent-<jobId>
 ```
 
 **IMPORTANT**: Use `cc-agent send`, not raw `tmux send-keys`. The send command handles escaping and timing properly.
+
+### Context Management
+
+```bash
+cc-agent clear <jobId>                          # send /clear to reset agent context
+cc-agent usage <jobId>                          # check agent token/context stats
+cc-agent reuse <jobId> "new task description"   # clear context + assign new task (faster than kill+respawn)
+```
 
 ### Control
 
@@ -606,14 +661,21 @@ Before marking any stage complete:
 
 ### Agent Finished but Still in Interactive Mode
 
-When an agent has completed its task but Claude Code remains in interactive mode (waiting for the next prompt), use `--completed` to cleanly close the session and preserve the correct status:
+When an agent has completed its task but Claude Code remains in interactive mode (waiting for the next prompt), you have two options:
 
+**Option A: Reuse the agent** (preferred if you have more work):
+```bash
+cc-agent capture <jobId> 50                    # verify the agent finished its work
+cc-agent reuse <jobId> "new task description"  # clear context + assign new task
+```
+
+**Option B: Close the session** (if no more work needed):
 ```bash
 cc-agent capture <jobId> 50    # verify the agent finished its work
 cc-agent kill <jobId> --completed   # close session, mark as completed
 ```
 
-**Always use `--completed` when you have confirmed the agent delivered its output.** This ensures the job shows as COMPLETED (not FAILED) in the dashboard and jobs list.
+**Always use `--completed` when closing a finished agent.** This ensures the job shows as COMPLETED (not FAILED) in the dashboard and jobs list.
 
 ### Agent Stuck
 

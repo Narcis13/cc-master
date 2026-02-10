@@ -32,6 +32,8 @@ export interface Job {
   tmuxSession?: string;
   result?: string;
   error?: string;
+  reuseCount?: number;
+  originalPrompt?: string;
 }
 
 function ensureJobsDir(): void {
@@ -209,7 +211,7 @@ export function getJobsJson(): JobsJsonOutput {
     let cost: number | null = null;
     const hasSession = existsSync(getArchivedSessionPath(effective.id));
 
-    if (effective.status === "completed") {
+    if (effective.status === "completed" || effective.status === "running") {
       const sessionData = loadSessionData(effective.id);
       if (sessionData) {
         tokens = sessionData.tokens;
@@ -217,8 +219,8 @@ export function getJobsJson(): JobsJsonOutput {
         summary = sessionData.summary ? truncateText(sessionData.summary, 500) : null;
       }
 
-      // Load full session for tool call stats (only if session exists)
-      if (hasSession) {
+      // Load full session for tool call stats (only for completed jobs with archived sessions)
+      if (effective.status === "completed" && hasSession) {
         const fullSession = getJobSession(effective.id);
         if (fullSession) {
           toolCallCount = fullSession.tool_calls.length;
@@ -504,4 +506,87 @@ export function getAttachCommand(jobId: string): string | null {
   if (!job || !job.tmuxSession) return null;
 
   return `tmux attach -t "${job.tmuxSession}"`;
+}
+
+export function clearJobContext(jobId: string): { success: boolean; error?: string } {
+  const job = loadJob(jobId);
+  if (!job || !job.tmuxSession) {
+    return { success: false, error: "Job not found or no tmux session" };
+  }
+
+  if (!sessionExists(job.tmuxSession)) {
+    return { success: false, error: "tmux session no longer exists" };
+  }
+
+  const sent = sendMessage(job.tmuxSession, "/clear");
+  if (!sent) {
+    return { success: false, error: "Failed to send /clear to session" };
+  }
+
+  return { success: true };
+}
+
+export function getJobUsage(jobId: string): { success: boolean; output?: string; error?: string } {
+  const job = loadJob(jobId);
+  if (!job || !job.tmuxSession) {
+    return { success: false, error: "Job not found or no tmux session" };
+  }
+
+  if (!sessionExists(job.tmuxSession)) {
+    return { success: false, error: "tmux session no longer exists" };
+  }
+
+  const sent = sendMessage(job.tmuxSession, "/usage");
+  if (!sent) {
+    return { success: false, error: "Failed to send /usage to session" };
+  }
+
+  // Wait for Claude Code to render the output
+  const { spawnSync } = require("child_process");
+  spawnSync("sleep", ["2"]);
+
+  const output = capturePane(job.tmuxSession, { lines: 30 });
+  return { success: true, output: output ?? undefined };
+}
+
+export function reuseJob(jobId: string, newPrompt: string): { success: boolean; error?: string } {
+  const job = loadJob(jobId);
+  if (!job || !job.tmuxSession) {
+    return { success: false, error: "Job not found or no tmux session" };
+  }
+
+  if (!sessionExists(job.tmuxSession)) {
+    return { success: false, error: "tmux session no longer exists" };
+  }
+
+  // Send /clear first
+  const clearSent = sendMessage(job.tmuxSession, "/clear");
+  if (!clearSent) {
+    return { success: false, error: "Failed to send /clear to session" };
+  }
+
+  // Wait for context reset
+  const { spawnSync } = require("child_process");
+  spawnSync("sleep", ["3"]);
+
+  // Send the new prompt
+  const promptSent = sendMessage(job.tmuxSession, newPrompt);
+  if (!promptSent) {
+    return { success: false, error: "Failed to send new prompt to session" };
+  }
+
+  // Update job metadata
+  if (!job.originalPrompt) {
+    job.originalPrompt = job.prompt;
+  }
+  job.prompt = newPrompt;
+  job.reuseCount = (job.reuseCount ?? 0) + 1;
+  job.startedAt = new Date().toISOString();
+  job.status = "running";
+  job.result = undefined;
+  job.error = undefined;
+  job.completedAt = undefined;
+  saveJob(job);
+
+  return { success: true };
 }
