@@ -1,8 +1,8 @@
 import { h, Fragment } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import type { JobEntry, HookEvent } from "../hooks/useJobs";
-import { TerminalPanel } from "./TerminalPanel";
-import { MessageInput } from "./MessageInput";
+import { SessionTabs } from "./SessionTabs";
+import { CostBadge } from "./CostBadge";
 import { Timeline } from "./Timeline";
 import { formatDuration, formatTokens, formatTime } from "../lib/format";
 
@@ -75,6 +75,7 @@ export function JobDetail({
             {STATUS_LABELS[job.status] || job.status}
           </span>
           <span class="job-elapsed">{formatDuration(elapsed)}</span>
+          <CostBadge cost={job.estimated_cost} />
           {isRunning && (
             <>
               {confirmKill ? (
@@ -118,6 +119,19 @@ export function JobDetail({
                   <span>{formatTime(job.completed_at)}</span>
                 </>
               )}
+              {job.tool_call_count !== null && (
+                <>
+                  <span class="info-label">Tool Calls</span>
+                  <span>
+                    {job.tool_call_count}
+                    {job.failed_tool_calls !== null && job.failed_tool_calls > 0 && (
+                      <span class="session-failed-count">
+                        {" "}({job.failed_tool_calls} failed)
+                      </span>
+                    )}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -126,8 +140,12 @@ export function JobDetail({
             <pre class="prompt-display">{job.prompt}</pre>
           </div>
 
-          <TerminalPanel jobId={jobId} />
-          <MessageInput jobId={jobId} disabled={!isRunning} />
+          <SessionTabs
+            jobId={jobId}
+            isRunning={isRunning}
+            hasSession={job.has_session ?? false}
+            estimatedCost={job.estimated_cost}
+          />
         </div>
 
         <div class="detail-sidebar">

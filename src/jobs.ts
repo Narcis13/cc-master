@@ -169,12 +169,28 @@ export type JobsJsonEntry = {
   tokens: ParsedSessionData["tokens"] | null;
   files_modified: ParsedSessionData["files_modified"] | null;
   summary: string | null;
+  tool_call_count: number | null;
+  has_session: boolean;
+  estimated_cost: number | null;
+  failed_tool_calls: number | null;
 };
 
 export type JobsJsonOutput = {
   generated_at: string;
   jobs: JobsJsonEntry[];
 };
+
+const PRICING: Record<string, { input_per_1m: number; output_per_1m: number }> = {
+  opus: { input_per_1m: 15, output_per_1m: 75 },
+  sonnet: { input_per_1m: 3, output_per_1m: 15 },
+};
+
+export function estimateCost(model: string, inputTokens: number, outputTokens: number): number {
+  const tier = model.includes("opus") ? "opus" : "sonnet";
+  const rates = PRICING[tier];
+  return (inputTokens / 1_000_000) * rates.input_per_1m
+       + (outputTokens / 1_000_000) * rates.output_per_1m;
+}
 
 export function getJobsJson(): JobsJsonOutput {
   const jobs = listJobs();
@@ -186,6 +202,10 @@ export function getJobsJson(): JobsJsonOutput {
     let tokens: ParsedSessionData["tokens"] | null = null;
     let filesModified: ParsedSessionData["files_modified"] | null = null;
     let summary: string | null = null;
+    let toolCallCount: number | null = null;
+    let failedToolCalls: number | null = null;
+    let cost: number | null = null;
+    const hasSession = existsSync(getArchivedSessionPath(effective.id));
 
     if (effective.status === "completed") {
       const sessionData = loadSessionData(effective.id);
@@ -193,6 +213,21 @@ export function getJobsJson(): JobsJsonOutput {
         tokens = sessionData.tokens;
         filesModified = sessionData.files_modified;
         summary = sessionData.summary ? truncateText(sessionData.summary, 500) : null;
+      }
+
+      // Load full session for tool call stats (only if session exists)
+      if (hasSession) {
+        const fullSession = getJobSession(effective.id);
+        if (fullSession) {
+          toolCallCount = fullSession.tool_calls.length;
+          failedToolCalls = fullSession.tool_calls.filter(tc => tc.is_error).length;
+        }
+      }
+
+      // Compute cost estimate from tokens
+      if (tokens) {
+        cost = estimateCost(effective.model, tokens.input, tokens.output);
+        cost = Math.round(cost * 100) / 100; // round to cents
       }
     }
 
@@ -210,6 +245,10 @@ export function getJobsJson(): JobsJsonOutput {
       tokens,
       files_modified: filesModified,
       summary,
+      tool_call_count: toolCallCount,
+      has_session: hasSession,
+      estimated_cost: cost,
+      failed_tool_calls: failedToolCalls,
     };
   });
 

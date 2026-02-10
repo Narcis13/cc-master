@@ -14,6 +14,10 @@ export type JobEntry = {
   tokens: { input: number; output: number; context_window: number; context_used_pct: number } | null;
   files_modified: string[] | null;
   summary: string | null;
+  tool_call_count: number | null;
+  has_session: boolean;
+  estimated_cost: number | null;
+  failed_tool_calls: number | null;
 };
 
 export type Metrics = {
