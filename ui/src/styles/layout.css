@@ -2177,6 +2177,141 @@
   background: var(--bg-tertiary);
 }
 
+/* ======= Clickable files ======= */
+.files-list-link {
+  cursor: pointer;
+  color: var(--accent);
+  transition: color 0.15s;
+}
+
+.files-list-link:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+/* ======= Markdown rendering ======= */
+.md-code-block {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+  position: relative;
+}
+
+.md-code-lang {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.md-inline-code {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.md-heading {
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+h3.md-heading { font-size: 14px; }
+h4.md-heading { font-size: 13px; }
+h5.md-heading { font-size: 12px; color: var(--text-secondary); }
+
+.md-list {
+  list-style: disc;
+  padding-left: 20px;
+  margin: 4px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.md-line {
+  display: inline;
+}
+
+/* Markdown in conversations: override white-space pre-wrap */
+.conv-message-text .md-code-block {
+  white-space: pre;
+}
+
+.conv-message-text .md-line {
+  white-space: normal;
+}
+
+/* ======= Thinking blocks ======= */
+.conv-thinking {
+  margin-bottom: 8px;
+  border: 1px solid rgba(188, 140, 255, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.conv-thinking-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(188, 140, 255, 0.06);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  transition: background 0.15s;
+}
+
+.conv-thinking-toggle:hover {
+  background: rgba(188, 140, 255, 0.12);
+}
+
+.conv-thinking-icon {
+  font-size: 10px;
+}
+
+.conv-thinking-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 11px;
+}
+
+.conv-thinking-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  border-top: 1px solid rgba(188, 140, 255, 0.15);
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* ======= Events tab ======= */
+.session-events-tab {
+  padding: 16px;
+}
+
+.session-events-tab .timeline {
+  max-width: none;
+}
+
 @media (max-width: 768px) {
   .session-stats-row {
     flex-direction: column;

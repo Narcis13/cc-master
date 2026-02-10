@@ -20,6 +20,7 @@ export type ToolCall = {
 export type SessionMessage = {
   role: "user" | "assistant";
   text: string;
+  thinking: string | null;
   timestamp: string | null;
 };
 
@@ -76,6 +77,20 @@ function extractAssistantText(content: unknown): string | null {
   }
 
   return parts.length > 0 ? parts.join("") : null;
+}
+
+function extractThinkingText(content: unknown): string | null {
+  if (!Array.isArray(content)) return null;
+  const parts: string[] = [];
+
+  for (const part of content) {
+    if (!isRecord(part)) continue;
+    if (part.type !== "thinking") continue;
+    const text = part.thinking;
+    if (typeof text === "string") parts.push(text);
+  }
+
+  return parts.length > 0 ? parts.join("\n") : null;
 }
 
 function extractFilesFromPatch(patchText: string): string[] {
@@ -335,8 +350,9 @@ export function parseFullSession(sessionFilePath: string): FullSessionData | nul
       const role = msg.role;
       if (role === "user" || role === "assistant") {
         const text = extractAssistantText(msg.content);
+        const thinking = role === "assistant" ? extractThinkingText(msg.content) : null;
         if (text) {
-          messages.push({ role: role as "user" | "assistant", text, timestamp: ts });
+          messages.push({ role: role as "user" | "assistant", text, thinking, timestamp: ts });
         }
 
         // Extract tool_use from assistant content blocks

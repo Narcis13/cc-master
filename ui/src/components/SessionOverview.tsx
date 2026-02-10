@@ -92,9 +92,25 @@ export function SessionOverview({
         <div class="detail-section">
           <h3>Files Modified ({session.files_modified.length})</h3>
           <ul class="files-list">
-            {session.files_modified.map((f) => (
-              <li key={f}>{f}</li>
-            ))}
+            {session.files_modified.map((f) => {
+              const tcIndex = session.tool_calls.findIndex((tc) => {
+                if (!tc.input || typeof tc.input !== "object" || Array.isArray(tc.input)) return false;
+                const inp = tc.input as Record<string, unknown>;
+                return typeof inp.file_path === "string" && inp.file_path.endsWith(f);
+              });
+              return (
+                <li
+                  key={f}
+                  class={tcIndex >= 0 ? "files-list-link" : ""}
+                  onClick={tcIndex >= 0 ? () => {
+                    const el = document.getElementById(`tc-${tcIndex}`);
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  } : undefined}
+                >
+                  {f}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

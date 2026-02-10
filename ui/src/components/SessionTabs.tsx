@@ -4,28 +4,35 @@ import { TerminalPanel } from "./TerminalPanel";
 import { MessageInput } from "./MessageInput";
 import { SessionOverview } from "./SessionOverview";
 import { ConversationView } from "./ConversationView";
+import { Timeline } from "./Timeline";
 import { useSession } from "../hooks/useSession";
+import type { HookEvent } from "../hooks/useJobs";
 
-type Tab = "terminal" | "session" | "conversation";
+type Tab = "terminal" | "session" | "conversation" | "events";
 
 export function SessionTabs({
   jobId,
   isRunning,
   hasSession,
   estimatedCost,
+  hookEvents,
 }: {
   jobId: string;
   isRunning: boolean;
   hasSession: boolean;
   estimatedCost: number | null;
+  hookEvents?: HookEvent[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("terminal");
   const { session, loading, error } = useSession(jobId, hasSession);
+
+  const jobEvents = (hookEvents || []).filter((e) => e.job_id === jobId);
 
   const tabs: { id: Tab; label: string; disabled: boolean }[] = [
     { id: "terminal", label: "Terminal", disabled: false },
     { id: "session", label: "Session", disabled: !hasSession },
     { id: "conversation", label: "Conversation", disabled: !hasSession },
+    { id: "events", label: `Events${jobEvents.length > 0 ? ` (${jobEvents.length})` : ""}`, disabled: false },
   ];
 
   return (
@@ -73,6 +80,16 @@ export function SessionTabs({
               <div class="empty-state">No conversation data available.</div>
             )}
           </>
+        )}
+
+        {activeTab === "events" && (
+          <div class="session-events-tab">
+            {jobEvents.length > 0 ? (
+              <Timeline events={jobEvents} jobId={jobId} />
+            ) : (
+              <div class="empty-state">No events recorded for this job.</div>
+            )}
+          </div>
         )}
       </div>
     </div>

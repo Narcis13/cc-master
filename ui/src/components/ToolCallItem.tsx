@@ -55,14 +55,14 @@ function formatOutput(output: unknown, maxLen: number = 200): string {
   return json.length > maxLen ? json.slice(0, maxLen) + "..." : json;
 }
 
-export function ToolCallItem({ tc, index }: { tc: ToolCall; index: number }) {
+export function ToolCallItem({ tc, index, id }: { tc: ToolCall; index: number; id?: string }) {
   const [expanded, setExpanded] = useState(false);
 
   const icon = TOOL_ICONS[tc.name] || tc.name.charAt(0).toUpperCase();
   const inputPreview = truncateInput(tc.input);
 
   return (
-    <div class={`tool-call-item ${tc.is_error ? "tool-call-item--error" : ""}`}>
+    <div id={id} class={`tool-call-item ${tc.is_error ? "tool-call-item--error" : ""}`}>
       <div class="tool-call-row" onClick={() => setExpanded(!expanded)}>
         <span class={`tool-call-icon ${tc.is_error ? "tool-call-icon--error" : ""}`}>
           {icon}

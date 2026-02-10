@@ -85,7 +85,7 @@ export function ToolCallList({
 
       <div class="tool-call-items">
         {visible.map((tc, i) => (
-          <ToolCallItem key={i} tc={tc} index={i} />
+          <ToolCallItem key={i} tc={tc} index={i} id={`tc-${i}`} />
         ))}
       </div>
 

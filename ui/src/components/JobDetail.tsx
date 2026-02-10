@@ -3,7 +3,6 @@ import { useState, useEffect } from "preact/hooks";
 import type { JobEntry, HookEvent } from "../hooks/useJobs";
 import { SessionTabs } from "./SessionTabs";
 import { CostBadge } from "./CostBadge";
-import { Timeline } from "./Timeline";
 import { formatDuration, formatTokens, formatTime } from "../lib/format";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -26,9 +25,6 @@ export function JobDetail({
   const [elapsed, setElapsed] = useState(job?.elapsed_ms ?? 0);
   const [confirmKill, setConfirmKill] = useState(false);
   const [killing, setKilling] = useState(false);
-
-  // Filter hook events for this job
-  const jobEvents = (hookEvents || []).filter((e) => e.job_id === jobId);
 
   // Live-tick elapsed for running jobs
   useEffect(() => {
@@ -145,6 +141,7 @@ export function JobDetail({
             isRunning={isRunning}
             hasSession={job.has_session ?? false}
             estimatedCost={job.estimated_cost}
+            hookEvents={hookEvents}
           />
         </div>
 
@@ -176,12 +173,6 @@ export function JobDetail({
                   {formatTokens(job.tokens.context_window)} context
                 </span>
               </div>
-            </div>
-          )}
-
-          {jobEvents.length > 0 && (
-            <div class="detail-section detail-section--timeline">
-              <Timeline events={jobEvents} jobId={jobId} />
             </div>
           )}
 
