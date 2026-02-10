@@ -52,7 +52,8 @@ actionsApi.post("/jobs/:id/send", async (c) => {
 });
 
 // POST /api/actions/jobs/:id/kill — Kill a running agent
-actionsApi.post("/jobs/:id/kill", (c) => {
+// Body: { completed?: boolean } — if true, marks as completed instead of failed
+actionsApi.post("/jobs/:id/kill", async (c) => {
   const id = c.req.param("id");
 
   const job = loadJob(id);
@@ -63,7 +64,15 @@ actionsApi.post("/jobs/:id/kill", (c) => {
     return c.json({ error: "Job is not running" }, 400);
   }
 
-  const killed = killJob(id);
+  let markCompleted = false;
+  try {
+    const body = await c.req.json();
+    markCompleted = body?.completed === true;
+  } catch {
+    // No body is fine, defaults to failed
+  }
+
+  const killed = killJob(id, markCompleted);
   if (!killed) {
     return c.json({ error: "Failed to kill job" }, 500);
   }

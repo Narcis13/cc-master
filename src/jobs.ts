@@ -277,7 +277,7 @@ export function startJob(options: StartJobOptions): Job {
   return job;
 }
 
-export function killJob(jobId: string): boolean {
+export function killJob(jobId: string, markCompleted: boolean = false): boolean {
   const job = loadJob(jobId);
   if (!job) return false;
 
@@ -286,8 +286,12 @@ export function killJob(jobId: string): boolean {
     killSession(job.tmuxSession);
   }
 
-  job.status = "failed";
-  job.error = "Killed by user";
+  if (markCompleted) {
+    job.status = "completed";
+  } else {
+    job.status = "failed";
+    job.error = "Killed by user";
+  }
   job.completedAt = new Date().toISOString();
   saveJob(job);
   return true;

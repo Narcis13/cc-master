@@ -292,9 +292,10 @@ tmux attach -t cc-agent-<jobId>
 ### Control
 
 ```bash
-cc-agent kill <jobId>           # stop agent (last resort)
-cc-agent clean                  # remove old jobs (>7 days)
-cc-agent health                 # verify claude + tmux available
+cc-agent kill <jobId>               # stop agent, mark as failed (last resort)
+cc-agent kill <jobId> --completed   # stop agent, mark as completed (agent finished but still in interactive mode)
+cc-agent clean                      # remove old jobs (>7 days)
+cc-agent health                     # verify claude + tmux available
 ```
 
 ## Flags Reference
@@ -309,6 +310,7 @@ cc-agent health                 # verify claude + tmux available
 | `--model` | `-m` | string | Model override |
 | `--json` | | flag | JSON output (jobs only) |
 | `--strip-ansi` | | flag | Clean output |
+| `--completed` | | flag | Mark killed job as completed (kill only) |
 | `--dry-run` | | flag | Preview prompt without executing |
 
 ## Jobs JSON Output
@@ -572,13 +574,24 @@ Before marking any stage complete:
 
 ## Error Recovery
 
+### Agent Finished but Still in Interactive Mode
+
+When an agent has completed its task but Claude Code remains in interactive mode (waiting for the next prompt), use `--completed` to cleanly close the session and preserve the correct status:
+
+```bash
+cc-agent capture <jobId> 50    # verify the agent finished its work
+cc-agent kill <jobId> --completed   # close session, mark as completed
+```
+
+**Always use `--completed` when you have confirmed the agent delivered its output.** This ensures the job shows as COMPLETED (not FAILED) in the dashboard and jobs list.
+
 ### Agent Stuck
 
 ```bash
 cc-agent jobs --json           # check status
 cc-agent capture <jobId> 100   # see what's happening
 cc-agent send <jobId> "Status update - what's blocking you?"
-cc-agent kill <jobId>          # only if truly stuck
+cc-agent kill <jobId>          # only if truly stuck (marks as failed)
 ```
 
 ### Agent Didn't Get Message

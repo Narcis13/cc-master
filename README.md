@@ -226,6 +226,7 @@ Creates a tmux session, launches Claude Code inside it, and sends your prompt. T
 | `--dir` | `-d` | path | cwd | Working directory |
 | `--map` | -- | flag | -- | Include `docs/CODEBASE_MAP.md` in prompt |
 | `--parent-session` | -- | id | -- | Link to a parent session |
+| `--completed` | -- | flag | -- | Mark killed job as completed instead of failed (`kill` only) |
 | `--dry-run` | -- | flag | -- | Preview prompt without executing |
 
 **Examples:**
@@ -344,6 +345,10 @@ tmux attach -t cc-agent-<jobId>
 ```bash
 # Kill a running agent (last resort -- prefer sending a message to redirect)
 cc-agent kill <jobId>
+
+# Kill an agent that finished its work but is still in interactive mode
+# Marks the job as completed instead of failed
+cc-agent kill <jobId> --completed
 
 # Delete a job record entirely (also kills the tmux session if running)
 cc-agent delete <jobId>
@@ -659,7 +664,7 @@ The dashboard exposes a full REST API you can use programmatically:
 | `GET /api/jobs/:id` | GET | Single job details |
 | `POST /api/actions/jobs` | POST | Start a new agent. Body: `{ prompt, model?, reasoning?, sandbox?, cwd? }` |
 | `POST /api/actions/jobs/:id/send` | POST | Send message to running agent. Body: `{ message }` |
-| `POST /api/actions/jobs/:id/kill` | POST | Kill a running agent |
+| `POST /api/actions/jobs/:id/kill` | POST | Kill a running agent. Body: `{ completed?: boolean }` |
 | `GET /api/events` | SSE | Real-time event stream (snapshot on connect, then deltas) |
 | `GET /api/metrics` | GET | Current aggregate metrics |
 | `GET /api/metrics/history?range=7d` | GET | Historical daily metrics (7d, 30d, 90d) |
@@ -967,6 +972,8 @@ cc-agent watch <jobId>
 
 **Do not** kill and respawn agents just because they've been running for 20-30 minutes. Prefer sending a message to redirect.
 
+If an agent has finished its work but is still in interactive mode (waiting for the next prompt), use `cc-agent kill <jobId> --completed` to close the session while correctly marking it as completed rather than failed.
+
 ### Agent Didn't Receive a Message
 
 ```bash
@@ -1100,6 +1107,7 @@ ui/src/                     Preact SPA (auto-built by Bun.build on dashboard sta
 - Use `-s read-only` for research tasks that shouldn't modify files
 - Use `-r low` for quick, simple tasks (switches to Sonnet)
 - Kill stuck jobs with `cc-agent kill <id>` only as a last resort
+- Use `cc-agent kill <id> --completed` when an agent finished but is still in interactive mode
 - Install hooks (`cc-agent setup-hooks`) for the best dashboard experience
 - Use the Pipeline view to visualize parallel execution at a glance
 - Use the Split view to monitor multiple agents side-by-side

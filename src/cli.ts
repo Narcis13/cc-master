@@ -38,7 +38,7 @@ Usage:
   cc-agent watch <jobId>              Stream output updates
   cc-agent jobs [--json]              List all jobs
   cc-agent sessions                   List active tmux sessions
-  cc-agent kill <jobId>               Kill running job
+  cc-agent kill <jobId> [--completed]  Kill running job (--completed marks as completed instead of failed)
   cc-agent clean                      Clean old completed jobs
   cc-agent dashboard [--port <n>]      Launch monitoring dashboard (also auto-starts with agents)
   cc-agent dashboard-stop               Stop running dashboard
@@ -56,6 +56,7 @@ Options:
   --map                      Include codebase map if available
   --dry-run                  Show prompt without executing
   --strip-ansi               Remove ANSI escape codes from output (for capture/output)
+  --completed                Mark killed job as completed instead of failed (kill command only)
   --json                     Output JSON (jobs command only)
   --limit <n>                Limit jobs shown (jobs command only)
   --all                      Show all jobs (jobs command only)
@@ -108,6 +109,7 @@ interface Options {
   json: boolean;
   jobsLimit: number | null;
   jobsAll: boolean;
+  markCompleted: boolean;
 }
 
 function stripAnsiCodes(text: string): string {
@@ -141,6 +143,7 @@ function parseArgs(args: string[]): {
     json: false,
     jobsLimit: config.jobsListLimit,
     jobsAll: false,
+    markCompleted: false,
   };
 
   const positional: string[] = [];
@@ -197,6 +200,8 @@ function parseArgs(args: string[]): {
       options.jobsLimit = Math.floor(parsed);
     } else if (arg === "--all") {
       options.jobsAll = true;
+    } else if (arg === "--completed") {
+      options.markCompleted = true;
     } else if (!arg.startsWith("-")) {
       if (!command) {
         command = arg;
@@ -592,8 +597,9 @@ async function main() {
           process.exit(1);
         }
 
-        if (killJob(positional[0])) {
-          console.log(`Killed job: ${positional[0]}`);
+        if (killJob(positional[0], options.markCompleted)) {
+          const label = options.markCompleted ? "Completed" : "Killed";
+          console.log(`${label} job: ${positional[0]}`);
         } else {
           console.error(`Could not kill job: ${positional[0]}`);
           process.exit(1);
