@@ -13,6 +13,7 @@ export type ToolCall = {
   name: string;
   input: unknown;
   output: unknown;
+  is_error: boolean;
   timestamp: string | null;
 };
 
@@ -360,6 +361,7 @@ export function parseFullSession(sessionFilePath: string): FullSessionData | nul
                   name: pending.name,
                   input: pending.input,
                   output: block.content ?? null,
+                  is_error: block.is_error === true,
                   timestamp: pending.timestamp,
                 });
                 pendingTools.delete(block.tool_use_id);
@@ -392,6 +394,7 @@ export function parseFullSession(sessionFilePath: string): FullSessionData | nul
             name: toolName,
             input: payload.input ?? payload.arguments ?? null,
             output: null,
+            is_error: false,
             timestamp: ts,
           });
         }
@@ -405,6 +408,7 @@ export function parseFullSession(sessionFilePath: string): FullSessionData | nul
       name: pending.name,
       input: pending.input,
       output: null,
+      is_error: false,
       timestamp: pending.timestamp,
     });
   }
