@@ -1,4 +1,4 @@
-import { h } from "preact";
+import { h, Fragment } from "preact";
 import type { SessionData } from "../hooks/useSession";
 import { CostBadge } from "./CostBadge";
 import { ToolCallList } from "./ToolCallList";

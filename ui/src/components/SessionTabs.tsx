@@ -1,4 +1,4 @@
-import { h } from "preact";
+import { h, Fragment } from "preact";
 import { useState } from "preact/hooks";
 import { TerminalPanel } from "./TerminalPanel";
 import { MessageInput } from "./MessageInput";
