@@ -23,7 +23,7 @@ import {
   getJobsJson,
   getJobSession,
 } from "./jobs.ts";
-import { loadFiles, formatPromptWithFiles, estimateTokens, loadCodebaseMap } from "./files.ts";
+import { resolveFileRefs, formatPromptWithFileRefs, estimateTokens, findCodebaseMapPath } from "./files.ts";
 import { isTmuxAvailable, listSessions, resolveClaudePath } from "./tmux.ts";
 
 const HELP = `
@@ -327,19 +327,22 @@ async function main() {
 
         let prompt = positional.join(" ");
 
-        // Load file context if specified
+        // Load file context if specified — use file references instead of inlining
+        // to avoid flooding the agent's prompt and causing truncation
         if (options.files.length > 0) {
-          const files = await loadFiles(options.files, options.dir);
-          prompt = formatPromptWithFiles(prompt, files);
-          console.error(`Included ${files.length} files`);
+          const files = await resolveFileRefs(options.files, options.dir);
+          if (files.length > 0) {
+            prompt = formatPromptWithFileRefs(prompt, files);
+            console.error(`Referenced ${files.length} files (agent will read them)`);
+          }
         }
 
-        // Include codebase map if requested
+        // Include codebase map if requested — reference the file instead of inlining
         if (options.includeMap) {
-          const map = await loadCodebaseMap(options.dir);
-          if (map) {
-            prompt = `## Codebase Map\n\n${map}\n\n---\n\n${prompt}`;
-            console.error("Included codebase map");
+          const mapPath = findCodebaseMapPath(options.dir);
+          if (mapPath) {
+            prompt = `IMPORTANT: Before starting, read the codebase map at "${mapPath}" for full architectural context.\n\n${prompt}`;
+            console.error(`Referenced codebase map: ${mapPath}`);
           } else {
             console.error("No codebase map found");
           }

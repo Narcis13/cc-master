@@ -97,3 +97,82 @@ export async function loadCodebaseMap(cwd: string): Promise<string | null> {
 
   return null;
 }
+
+/**
+ * Find the codebase map file path (without reading content).
+ * Returns a relative path suitable for agent file references.
+ */
+export function findCodebaseMapPath(cwd: string): string | null {
+  const candidates = [
+    "docs/CODEBASE_MAP.md",
+    "CODEBASE_MAP.md",
+    "docs/ARCHITECTURE.md",
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      statSync(resolve(cwd, candidate));
+      return candidate;
+    } catch {
+      // Try next path
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Resolve glob patterns to file paths (without reading content).
+ * Returns relative paths for agent file references.
+ */
+export async function resolveFileRefs(
+  patterns: string[],
+  baseDir: string = process.cwd()
+): Promise<string[]> {
+  const files: string[] = [];
+  const seen = new Set<string>();
+
+  for (const pattern of patterns) {
+    if (pattern.startsWith("!")) {
+      const negPattern = pattern.slice(1);
+      const matches = await glob(negPattern, { cwd: baseDir, absolute: true });
+      for (const match of matches) {
+        seen.delete(match);
+      }
+      continue;
+    }
+
+    const matches = await glob(pattern, { cwd: baseDir, absolute: true });
+
+    for (const match of matches) {
+      if (seen.has(match)) continue;
+
+      try {
+        const stat = statSync(match);
+        if (!stat.isFile()) continue;
+        if (stat.size > 500000) continue;
+
+        seen.add(match);
+        files.push(relative(baseDir, match));
+      } catch {
+        // Skip files we can't read
+      }
+    }
+  }
+
+  return files;
+}
+
+/**
+ * Format prompt with file references (not inlined content).
+ * Agent will read these files itself using the Read tool.
+ */
+export function formatPromptWithFileRefs(
+  prompt: string,
+  filePaths: string[]
+): string {
+  if (filePaths.length === 0) return prompt;
+
+  const fileList = filePaths.map((f) => `- ${f}`).join("\n");
+  return `IMPORTANT: Before starting, read these files for context:\n${fileList}\n\n${prompt}`;
+}
