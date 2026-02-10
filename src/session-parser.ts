@@ -9,10 +9,31 @@ export type SessionTokens = {
   context_used_pct: number;
 };
 
+export type ToolCall = {
+  name: string;
+  input: unknown;
+  output: unknown;
+  timestamp: string | null;
+};
+
+export type SessionMessage = {
+  role: "user" | "assistant";
+  text: string;
+  timestamp: string | null;
+};
+
 export type ParsedSessionData = {
   tokens: SessionTokens | null;
   files_modified: string[] | null;
   summary: string | null;
+};
+
+export type FullSessionData = ParsedSessionData & {
+  tool_calls: ToolCall[];
+  messages: SessionMessage[];
+  model: string | null;
+  session_id: string | null;
+  duration_ms: number | null;
 };
 
 const SESSION_EXTENSIONS = new Set<string>([".jsonl", ".json"]);
@@ -265,4 +286,145 @@ export function parseSessionFile(sessionFilePath: string): ParsedSessionData | n
   }
 
   return parseJsonSession(content);
+}
+
+/**
+ * Parse a JSONL session file into full structured data including
+ * every tool call, message, and metadata. Used for the archived
+ * session files stored per-job.
+ */
+export function parseFullSession(sessionFilePath: string): FullSessionData | null {
+  let content: string;
+  try {
+    content = readFileSync(sessionFilePath, "utf-8");
+  } catch {
+    return null;
+  }
+
+  const base = parseJsonlSession(content);
+  const toolCalls: ToolCall[] = [];
+  const messages: SessionMessage[] = [];
+  let model: string | null = null;
+  let sessionId: string | null = null;
+  let firstTimestamp: string | null = null;
+  let lastTimestamp: string | null = null;
+
+  // Track tool_use blocks by ID so we can pair them with results
+  const pendingTools = new Map<string, { name: string; input: unknown; timestamp: string | null }>();
+
+  for (const line of content.split("\n")) {
+    if (!line.trim()) continue;
+    const record = parseJsonLine(line);
+    if (!isRecord(record)) continue;
+
+    const ts = typeof record.timestamp === "string" ? record.timestamp : null;
+    if (ts) {
+      if (!firstTimestamp) firstTimestamp = ts;
+      lastTimestamp = ts;
+    }
+
+    // Extract session metadata from first record
+    if (!sessionId && typeof record.sessionId === "string") {
+      sessionId = record.sessionId;
+    }
+
+    // Direct message records (Claude Code JSONL format)
+    if (isRecord(record.message)) {
+      const msg = record.message;
+      const role = msg.role;
+      if (role === "user" || role === "assistant") {
+        const text = extractAssistantText(msg.content);
+        if (text) {
+          messages.push({ role: role as "user" | "assistant", text, timestamp: ts });
+        }
+
+        // Extract tool_use from assistant content blocks
+        if (role === "assistant" && Array.isArray(msg.content)) {
+          for (const block of msg.content) {
+            if (!isRecord(block)) continue;
+            if (block.type === "tool_use" && typeof block.name === "string") {
+              const toolId = typeof block.id === "string" ? block.id : "";
+              pendingTools.set(toolId, { name: block.name, input: block.input, timestamp: ts });
+            }
+          }
+        }
+
+        // Extract tool_result from user content blocks
+        if (role === "user" && Array.isArray(msg.content)) {
+          for (const block of msg.content) {
+            if (!isRecord(block)) continue;
+            if (block.type === "tool_result" && typeof block.tool_use_id === "string") {
+              const pending = pendingTools.get(block.tool_use_id);
+              if (pending) {
+                toolCalls.push({
+                  name: pending.name,
+                  input: pending.input,
+                  output: block.content ?? null,
+                  timestamp: pending.timestamp,
+                });
+                pendingTools.delete(block.tool_use_id);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Event-based records (streaming format)
+    const recordType = typeof record.type === "string" ? record.type : null;
+    const payload = isRecord(record.payload) ? record.payload : null;
+    if (recordType && payload) {
+      const payloadType = typeof payload.type === "string" ? payload.type : null;
+
+      // Extract model info
+      if (recordType === "event_msg" && payloadType === "system" && isRecord(payload.info)) {
+        if (typeof payload.info.model === "string") {
+          model = payload.info.model;
+        }
+      }
+
+      // Tool calls from response_item format
+      if (recordType === "response_item") {
+        const isToolCall = payloadType === "custom_tool_call" || payloadType === "function_call";
+        const toolName = typeof payload.name === "string" ? payload.name : null;
+        if (isToolCall && toolName) {
+          toolCalls.push({
+            name: toolName,
+            input: payload.input ?? payload.arguments ?? null,
+            output: null,
+            timestamp: ts,
+          });
+        }
+      }
+    }
+  }
+
+  // Flush any unmatched pending tools
+  for (const [, pending] of pendingTools) {
+    toolCalls.push({
+      name: pending.name,
+      input: pending.input,
+      output: null,
+      timestamp: pending.timestamp,
+    });
+  }
+
+  // Calculate duration
+  let durationMs: number | null = null;
+  if (firstTimestamp && lastTimestamp) {
+    const start = Date.parse(firstTimestamp);
+    const end = Date.parse(lastTimestamp);
+    if (Number.isFinite(start) && Number.isFinite(end)) {
+      durationMs = Math.max(0, end - start);
+    }
+  }
+
+  return {
+    ...base,
+    tool_calls: toolCalls,
+    messages,
+    model,
+    session_id: sessionId,
+    duration_ms: durationMs,
+  };
 }

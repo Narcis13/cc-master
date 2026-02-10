@@ -1,10 +1,10 @@
 // Job management for async claude agent execution with tmux
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync, statSync } from "fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, unlinkSync, statSync, existsSync, rmSync } from "fs";
 import { join } from "path";
 import { config, ReasoningEffort, SandboxMode } from "./config.ts";
 import { randomBytes } from "crypto";
-import { extractSessionId, findSessionFile, parseSessionFile, type ParsedSessionData } from "./session-parser.ts";
+import { extractSessionId, findSessionFile, parseSessionFile, parseFullSession, type ParsedSessionData, type FullSessionData } from "./session-parser.ts";
 import {
   createSession,
   killSession,
@@ -119,10 +119,18 @@ function isInactiveTimedOut(job: Job): boolean {
   return Date.now() - lastActivityMs > timeoutMinutes * 60 * 1000;
 }
 
-function loadSessionData(jobId: string): ParsedSessionData | null {
+function getArchivedSessionPath(jobId: string): string {
+  return join(config.jobsDir, `${jobId}.session.jsonl`);
+}
+
+function findSessionFilePath(jobId: string): string | null {
+  // Prefer the archived session file (copied by hook on Stop/SessionEnd)
+  const archived = getArchivedSessionPath(jobId);
+  if (existsSync(archived)) return archived;
+
+  // Fall back to finding it via session ID in the log
   const logFile = join(config.jobsDir, `${jobId}.log`);
   let logContent: string;
-
   try {
     logContent = readFileSync(logFile, "utf-8");
   } catch {
@@ -132,10 +140,19 @@ function loadSessionData(jobId: string): ParsedSessionData | null {
   const sessionId = extractSessionId(logContent);
   if (!sessionId) return null;
 
-  const sessionFile = findSessionFile(sessionId);
-  if (!sessionFile) return null;
+  return findSessionFile(sessionId);
+}
 
+function loadSessionData(jobId: string): ParsedSessionData | null {
+  const sessionFile = findSessionFilePath(jobId);
+  if (!sessionFile) return null;
   return parseSessionFile(sessionFile);
+}
+
+export function getJobSession(jobId: string): FullSessionData | null {
+  const sessionFile = findSessionFilePath(jobId);
+  if (!sessionFile) return null;
+  return parseFullSession(sessionFile);
 }
 
 export type JobsJsonEntry = {
@@ -212,12 +229,18 @@ export function deleteJob(jobId: string): boolean {
 
   try {
     unlinkSync(getJobPath(jobId));
-    // Clean up prompt file if exists
-    try {
-      unlinkSync(join(config.jobsDir, `${jobId}.prompt`));
-    } catch {
-      // Prompt file may not exist
+    // Clean up associated files
+    const cleanupFiles = [
+      join(config.jobsDir, `${jobId}.prompt`),
+      join(config.jobsDir, `${jobId}.log`),
+      join(config.jobsDir, `${jobId}.session.jsonl`),
+    ];
+    for (const f of cleanupFiles) {
+      try { unlinkSync(f); } catch { /* may not exist */ }
     }
+    // Clean up subagent transcripts directory
+    const subagentDir = join(config.jobsDir, `${jobId}-subagents`);
+    try { rmSync(subagentDir, { recursive: true }); } catch { /* may not exist */ }
     return true;
   } catch {
     return false;

@@ -21,14 +21,17 @@ const HOOK_EVENTS: { event: string; matcher?: string }[] = [
   { event: "PreCompact" },
 ];
 
-function buildHookEntry(matcher?: string) {
+function buildHookEntry(event: string, matcher?: string) {
+  // Stop and SessionEnd must be synchronous so the transcript copy
+  // finishes before Claude tears down the session.
+  const isLifecycleEnd = event === "Stop" || event === "SessionEnd";
   const entry: any = {
     hooks: [
       {
         type: "command",
         command: RELAY_COMMAND,
-        async: true,
-        timeout: 5,
+        async: !isLifecycleEnd,
+        timeout: isLifecycleEnd ? 10 : 5,
       },
     ],
   };
@@ -90,7 +93,7 @@ export function installHooks(): { installed: string[]; skipped: string[] } {
       continue;
     }
 
-    settings.hooks[event].push(buildHookEntry(matcher));
+    settings.hooks[event].push(buildHookEntry(event, matcher));
     installed.push(event);
   }
 

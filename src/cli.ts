@@ -21,6 +21,7 @@ import {
   getAttachCommand,
   Job,
   getJobsJson,
+  getJobSession,
 } from "./jobs.ts";
 import { loadFiles, formatPromptWithFiles, estimateTokens, loadCodebaseMap } from "./files.ts";
 import { isTmuxAvailable, listSessions, resolveClaudePath } from "./tmux.ts";
@@ -36,6 +37,7 @@ Usage:
   cc-agent output <jobId>             Get full session output
   cc-agent attach <jobId>             Get tmux attach command
   cc-agent watch <jobId>              Stream output updates
+  cc-agent session <jobId> [--json]   Show archived session data (tools, messages, tokens)
   cc-agent jobs [--json]              List all jobs
   cc-agent sessions                   List active tmux sessions
   cc-agent kill <jobId> [--completed]  Kill running job (--completed marks as completed instead of failed)
@@ -536,6 +538,55 @@ async function main() {
           console.error("\nStopped watching");
           process.exit(0);
         });
+        break;
+      }
+
+      case "session": {
+        if (positional.length === 0) {
+          console.error("Error: No job ID provided");
+          process.exit(1);
+        }
+
+        const sessionData = getJobSession(positional[0]);
+        if (!sessionData) {
+          console.error(`No session data for job ${positional[0]}`);
+          console.error("Session file is archived on Stop/SessionEnd via hooks.");
+          console.error("Run 'cc-agent setup-hooks' to install hooks if not already done.");
+          process.exit(1);
+        }
+
+        if (options.json) {
+          console.log(JSON.stringify(sessionData, null, 2));
+        } else {
+          console.log(`Session for job: ${positional[0]}`);
+          if (sessionData.session_id) console.log(`Session ID: ${sessionData.session_id}`);
+          if (sessionData.model) console.log(`Model: ${sessionData.model}`);
+          if (sessionData.duration_ms !== null) console.log(`Duration: ${formatDuration(sessionData.duration_ms)}`);
+          if (sessionData.tokens) {
+            console.log(`Tokens: ${sessionData.tokens.input.toLocaleString()} in / ${sessionData.tokens.output.toLocaleString()} out (${sessionData.tokens.context_used_pct}% context)`);
+          }
+          console.log(`Messages: ${sessionData.messages.length}`);
+          console.log(`Tool calls: ${sessionData.tool_calls.length}`);
+          if (sessionData.files_modified && sessionData.files_modified.length > 0) {
+            console.log(`Files modified: ${sessionData.files_modified.length}`);
+            for (const f of sessionData.files_modified) {
+              console.log(`  ${f}`);
+            }
+          }
+          if (sessionData.tool_calls.length > 0) {
+            console.log("\nTool calls:");
+            const toolCounts = new Map<string, number>();
+            for (const tc of sessionData.tool_calls) {
+              toolCounts.set(tc.name, (toolCounts.get(tc.name) ?? 0) + 1);
+            }
+            for (const [name, count] of [...toolCounts.entries()].sort((a, b) => b[1] - a[1])) {
+              console.log(`  ${name}: ${count}`);
+            }
+          }
+          if (sessionData.summary) {
+            console.log(`\nSummary: ${sessionData.summary.slice(0, 300)}${sessionData.summary.length > 300 ? "..." : ""}`);
+          }
+        }
         break;
       }
 

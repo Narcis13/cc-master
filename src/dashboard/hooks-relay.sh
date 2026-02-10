@@ -1,17 +1,20 @@
 #!/bin/bash
 # Relays Claude Code hook events to the monitoring dashboard event stream.
 # Receives JSON on stdin, appends to events.jsonl with timestamp and job ID.
+# On Stop/SessionEnd events, archives the full JSONL transcript alongside job files.
 # Installed to ~/.cc-agent/hooks/relay-event.sh by `cc-agent dashboard --setup-hooks`
 
 set -e
 
 EVENTS_FILE="${HOME}/.cc-agent/events.jsonl"
+JOBS_DIR="${HOME}/.cc-agent/jobs"
 INPUT=$(cat)
 
 # Extract fields from hook input
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 EVENT_NAME=$(echo "$INPUT" | jq -r '.hook_event_name // empty')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
@@ -25,6 +28,22 @@ if [ -n "$TMUX_SESSION" ]; then
   fi
 fi
 
+# Archive transcript on Stop or SessionEnd events
+if [ -n "$JOB_ID" ] && [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
+  if [ "$EVENT_NAME" = "Stop" ] || [ "$EVENT_NAME" = "SessionEnd" ]; then
+    DEST="${JOBS_DIR}/${JOB_ID}.session.jsonl"
+    cp "$TRANSCRIPT_PATH" "$DEST" 2>/dev/null || true
+
+    # Also copy any subagent transcripts if they exist
+    SUBAGENT_DIR="${TRANSCRIPT_PATH%.jsonl}-subagents"
+    if [ -d "$SUBAGENT_DIR" ]; then
+      DEST_SUBAGENT_DIR="${JOBS_DIR}/${JOB_ID}-subagents"
+      mkdir -p "$DEST_SUBAGENT_DIR" 2>/dev/null || true
+      cp "$SUBAGENT_DIR"/*.jsonl "$DEST_SUBAGENT_DIR/" 2>/dev/null || true
+    fi
+  fi
+fi
+
 # Build event JSON
 EVENT=$(jq -n \
   --arg ts "$TIMESTAMP" \
@@ -33,6 +52,7 @@ EVENT=$(jq -n \
   --arg tool "$TOOL_NAME" \
   --arg job "$JOB_ID" \
   --arg cwd "$CWD" \
+  --arg transcript "$TRANSCRIPT_PATH" \
   --argjson raw "$INPUT" \
   '{
     timestamp: $ts,
@@ -41,6 +61,7 @@ EVENT=$(jq -n \
     tool_name: $tool,
     job_id: $job,
     cwd: $cwd,
+    transcript_path: $transcript,
     data: $raw
   }')
 

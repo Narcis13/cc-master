@@ -1,10 +1,10 @@
 # CC Orchestrator
 
-CLI tool for delegating tasks to Claude Code agents via tmux sessions. Designed for Claude Code orchestration with bidirectional communication.
+CLI tool for delegating tasks to Claude Code agents via tmux sessions. Includes a real-time web dashboard, terminal streaming, analytics, and a plugin marketplace.
 
-**Stack**: TypeScript, Bun, tmux, Claude Code CLI
+**Stack**: TypeScript, Bun, tmux, Claude Code CLI, Hono (server), Preact (UI), SQLite, xterm.js
 
-**Structure**: Shell wrapper -> CLI entry point -> Job management -> tmux sessions
+**Structure**: Shell wrapper -> CLI entry point -> Job management -> tmux sessions -> Dashboard (Hono + Preact + SSE/WebSocket)
 
 For detailed architecture, see [docs/CODEBASE_MAP.md](docs/CODEBASE_MAP.md).
 
@@ -31,6 +31,8 @@ bun run src/cli.ts health
 | `src/config.ts` | Configuration constants |
 | `src/files.ts` | File loading for context injection |
 | `src/session-parser.ts` | Parse Claude session files for metadata |
+| `src/dashboard/` | Dashboard server (Hono), state, SQLite, SSE, hooks |
+| `ui/src/` | Preact UI: components, hooks, styles |
 | `plugins/` | Claude Code plugin (marketplace structure) |
 
 ## Plugin Structure
@@ -48,8 +50,8 @@ plugins/cc-orchestrator/            # the plugin
 
 ## Dependencies
 
-- **Runtime**: Bun, tmux, claude CLI
-- **NPM**: glob (file matching)
+- **Runtime**: Bun, tmux, claude CLI, jq (for hooks)
+- **NPM**: glob, hono, preact, @xterm/xterm
 
 ## Notes
 

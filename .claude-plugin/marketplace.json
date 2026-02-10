@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Delegate tasks to Claude Code agents via tmux sessions. Designed for Claude Code orchestration.",
-    "version": "1.0.0"
+    "version": "1.0.9"
   },
   "plugins": [
     {
       "name": "cc-orchestrator",
       "source": "./plugins/cc-orchestrator",
       "description": "Orchestrate Claude Code agents from Claude Code. Spawn parallel agents, monitor progress, send follow-up messages, and capture results - all through tmux sessions.",
-      "version": "1.0.0",
+      "version": "1.0.9",
       "category": "developer tools",
       "keywords": ["claude", "orchestration", "agents", "tmux", "parallel", "delegation"]
     }
