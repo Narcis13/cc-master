@@ -23,6 +23,10 @@ export const config = {
 
   // tmux session prefix
   tmuxPrefix: "cc-agent",
+
+  // Orchestrator
+  orchJobId: "orch",
+  orchStateFile: `${process.env.HOME}/.cc-agent/orchestrator-state.json`,
 };
 
 export type ReasoningEffort = typeof config.reasoningEfforts[number];

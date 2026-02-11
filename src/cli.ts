@@ -28,6 +28,12 @@ import {
 } from "./jobs.ts";
 import { resolveFileRefs, formatPromptWithFileRefs, estimateTokens, findCodebaseMapPath } from "./files.ts";
 import { isTmuxAvailable, listSessions, resolveClaudePath } from "./tmux.ts";
+import {
+  startOrchestrator,
+  stopOrchestrator,
+  getOrchestratorStatus,
+  injectToOrchestrator,
+} from "./orchestrator.ts";
 
 const HELP = `
 CC Agent - Delegate tasks to Claude Code agents (tmux-based)
@@ -53,6 +59,11 @@ Usage:
   cc-agent setup-hooks                Install Claude Code hooks for event tracking
   cc-agent remove-hooks               Remove installed hooks
   cc-agent health                     Check tmux and claude code availability
+
+  cc-agent orchestrator start [options]  Start the orchestrator session
+  cc-agent orchestrator stop             Stop the orchestrator
+  cc-agent orchestrator status           Show orchestrator status
+  cc-agent orchestrator inject "msg"     Inject a message into the orchestrator
 
 Options:
   -r, --reasoning <level>    Reasoning effort: low, medium, high, xhigh (default: xhigh)
@@ -784,6 +795,86 @@ async function main() {
         } else {
           console.error(`Could not delete job: ${positional[0]}`);
           process.exit(1);
+        }
+        break;
+      }
+
+      case "orchestrator": {
+        const subCmd = positional[0];
+        if (!subCmd || subCmd === "help") {
+          console.log("Usage:");
+          console.log("  cc-agent orchestrator start [--model opus] [--reasoning xhigh]");
+          console.log("  cc-agent orchestrator stop");
+          console.log("  cc-agent orchestrator status");
+          console.log('  cc-agent orchestrator inject "message"');
+          break;
+        }
+
+        switch (subCmd) {
+          case "start": {
+            if (!isTmuxAvailable()) {
+              console.error("Error: tmux is required but not installed");
+              process.exit(1);
+            }
+            const result = startOrchestrator({
+              model: options.model,
+              reasoning: options.reasoning,
+            });
+            if (result.success) {
+              ensureDashboardRunning();
+              console.log("Orchestrator started");
+              console.log(`tmux session: cc-agent-orch`);
+              console.log(`Attach: tmux attach -t cc-agent-orch`);
+            } else {
+              console.error(`Failed to start orchestrator: ${result.error}`);
+              process.exit(1);
+            }
+            break;
+          }
+          case "stop": {
+            const result = stopOrchestrator();
+            if (result.success) {
+              console.log("Orchestrator stopped");
+            } else {
+              console.error(`Failed to stop orchestrator: ${result.error}`);
+              process.exit(1);
+            }
+            break;
+          }
+          case "status": {
+            const status = getOrchestratorStatus();
+            console.log(`Running: ${status.running ? "yes" : "no"}`);
+            if (status.running) {
+              console.log(`Idle: ${status.idle ? "yes" : "no"}`);
+              if (status.contextPct !== undefined) {
+                console.log(`Context: ${status.contextPct}%`);
+              }
+              if (status.state) {
+                console.log(`Current task: ${status.state.current_task ?? "none"}`);
+                console.log(`Active agents: ${status.state.active_agents.length}`);
+                console.log(`Last saved: ${status.state.last_saved}`);
+              }
+            }
+            break;
+          }
+          case "inject": {
+            const message = positional.slice(1).join(" ");
+            if (!message) {
+              console.error("Error: No message provided");
+              console.error('Usage: cc-agent orchestrator inject "message"');
+              process.exit(1);
+            }
+            if (injectToOrchestrator(message)) {
+              console.log(`Injected message into orchestrator`);
+            } else {
+              console.error("Failed to inject message (orchestrator may not be running)");
+              process.exit(1);
+            }
+            break;
+          }
+          default:
+            console.error(`Unknown orchestrator subcommand: ${subCmd}`);
+            process.exit(1);
         }
         break;
       }
