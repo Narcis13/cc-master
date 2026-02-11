@@ -1,4 +1,4 @@
-import { h } from "preact";
+import { h, Fragment } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { useJobs } from "./hooks/useJobs";
 import { Dashboard } from "./components/Dashboard";
@@ -10,6 +10,64 @@ import { MetricsChart } from "./components/MetricsChart";
 import { SplitTerminal } from "./components/SplitTerminal";
 import { CommandPalette } from "./components/CommandPalette";
 import { PipelineView } from "./components/PipelineView";
+
+// Database sub-navigation tab bar
+function DbSubNav({ route }: { route: string }) {
+  const tabs = [
+    { hash: "#/db", label: "Overview" },
+    { hash: "#/db/jobs", label: "Job History" },
+    { hash: "#/db/analytics", label: "Analytics" },
+    { hash: "#/db/tools", label: "Tool Usage" },
+    { hash: "#/db/events", label: "Events" },
+  ];
+
+  return (
+    <nav class="db-sub-nav">
+      {tabs.map((tab) => {
+        const isActive =
+          tab.hash === "#/db"
+            ? route === "#/db" || route === "#/db/"
+            : route.startsWith(tab.hash);
+        return (
+          <a
+            key={tab.hash}
+            href={tab.hash}
+            class={`db-sub-nav-link ${isActive ? "active" : ""}`}
+          >
+            {tab.label}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+// Database layout wrapper
+function DbLayout({ route }: { route: string }) {
+  const dbJobMatch = route.match(/^#\/db\/jobs\/(.+)$/);
+
+  let content;
+  if (dbJobMatch) {
+    content = <div class="db-placeholder">Job History Detail: {dbJobMatch[1]} — Coming Soon</div>;
+  } else if (route.startsWith("#/db/jobs")) {
+    content = <div class="db-placeholder">Job History Browser — Coming Soon</div>;
+  } else if (route.startsWith("#/db/analytics")) {
+    content = <div class="db-placeholder">Analytics Dashboard — Coming Soon</div>;
+  } else if (route.startsWith("#/db/tools")) {
+    content = <div class="db-placeholder">Tool Usage Explorer — Coming Soon</div>;
+  } else if (route.startsWith("#/db/events")) {
+    content = <div class="db-placeholder">Events Timeline — Coming Soon</div>;
+  } else {
+    content = <div class="db-placeholder">Database Overview — Coming Soon</div>;
+  }
+
+  return (
+    <div class="db-layout">
+      <DbSubNav route={route} />
+      <div class="db-content">{content}</div>
+    </div>
+  );
+}
 
 export function App() {
   const {
@@ -75,7 +133,8 @@ export function App() {
   const isAnalytics = route === "#/analytics";
   const isSplit = route === "#/split";
   const isPipeline = route === "#/pipeline";
-  const isHome = !jobMatch && !isTimeline && !isNotifications && !isAnalytics && !isSplit && !isPipeline;
+  const isDatabase = route.startsWith("#/db");
+  const isHome = !jobMatch && !isTimeline && !isNotifications && !isAnalytics && !isSplit && !isPipeline && !isDatabase;
 
   return (
     <div class="shell">
@@ -102,6 +161,9 @@ export function App() {
           <a href="#/pipeline" class={`topbar-nav-link ${isPipeline ? "active" : ""}`}>
             Pipeline
           </a>
+          <a href="#/db" class={`topbar-nav-link ${isDatabase ? "active" : ""}`}>
+            Database
+          </a>
         </nav>
         <button class="btn btn--ghost btn--sm topbar-palette" onClick={() => setShowPalette(true)} title="Command Palette (Ctrl+K)">
           <kbd class="palette-kbd">Ctrl+K</kbd>
@@ -112,7 +174,9 @@ export function App() {
         <span class={`connection-dot ${connected ? "connected" : "disconnected"}`} />
       </header>
       <main class="content">
-        {isAnalytics ? (
+        {isDatabase ? (
+          <DbLayout route={route} />
+        ) : isAnalytics ? (
           <MetricsChart />
         ) : isSplit ? (
           <SplitTerminal jobs={jobs} />

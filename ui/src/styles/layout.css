@@ -2321,3 +2321,699 @@ h5.md-heading { font-size: 12px; color: var(--text-secondary); }
     max-width: 100%;
   }
 }
+
+/* =================================================================
+   DATABASE EXPLORER — Shared Foundation
+   ================================================================= */
+
+/* --- DB Layout --- */
+.db-layout {
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.db-content {
+  padding-top: 16px;
+}
+
+.db-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+/* --- DB Sub-Navigation Tab Bar --- */
+.db-sub-nav {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.db-sub-nav-link {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.15s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.db-sub-nav-link:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.db-sub-nav-link.active {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-bottom-color: var(--accent);
+}
+
+/* --- DB Stat Cards --- */
+.db-stat-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.db-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 100px;
+  flex: 1;
+}
+
+.db-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.db-stat-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+  text-align: center;
+}
+
+.db-stat-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* --- DB Filter Bar --- */
+.db-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.db-filter-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.db-filter-select:hover {
+  border-color: var(--text-secondary);
+}
+
+.db-filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.db-filter-search {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 180px;
+  font-family: inherit;
+}
+
+.db-filter-search::placeholder {
+  color: var(--text-secondary);
+}
+
+.db-filter-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.db-filter-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* --- DB Table --- */
+.db-table-wrap {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.db-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.db-table th.sortable {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.db-table th.sortable:hover {
+  color: var(--text-primary);
+}
+
+.db-table th.sorted {
+  color: var(--accent);
+}
+
+.db-table th .sort-indicator {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.db-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.db-table tr:last-child td {
+  border-bottom: none;
+}
+
+.db-table tr {
+  transition: background 0.15s;
+}
+
+.db-table tr:hover {
+  background: var(--bg-tertiary);
+}
+
+.db-table tr.clickable {
+  cursor: pointer;
+}
+
+.db-table .cell-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.db-table .cell-secondary {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.db-table .cell-truncate {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- DB Pagination --- */
+.db-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.db-pagination-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.db-pagination-btn:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+}
+
+.db-pagination-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* --- DB Detail Panel --- */
+.db-detail-panel {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.db-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.db-detail-header-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.db-detail-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.db-detail-close:hover {
+  color: var(--text-primary);
+}
+
+.db-detail-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.db-detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.db-detail-block-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+}
+
+.db-detail-block-content {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-primary);
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+/* --- DB Summary Bar --- */
+.db-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.db-summary-bar strong {
+  color: var(--text-primary);
+}
+
+/* --- DB Section Card (for Overview table cards) --- */
+.db-section-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.db-section-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.db-section-card-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.db-section-card-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.db-section-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.db-section-card-row-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  margin: 0 8px;
+  overflow: hidden;
+}
+
+.db-section-card-row-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.db-section-card-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  margin-top: auto;
+}
+
+.db-section-card-link:hover {
+  text-decoration: underline;
+}
+
+/* --- DB Cards Grid (for Overview) --- */
+.db-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* --- DB Quick Search --- */
+.db-quick-search {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.db-quick-search-input {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.db-quick-search-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* --- DB Status Badge (reusable) --- */
+.db-status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: inline-block;
+}
+
+.db-status-badge--completed {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--status-complete);
+}
+
+.db-status-badge--failed {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--status-failed);
+}
+
+.db-status-badge--running {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--status-running);
+}
+
+.db-status-badge--error {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--status-failed);
+}
+
+/* --- DB Two Column Layout (for Job Detail) --- */
+.db-two-col {
+  display: flex;
+  gap: 24px;
+}
+
+.db-two-col-left {
+  flex: 55;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.db-two-col-right {
+  flex: 45;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- DB Breadcrumb --- */
+.db-breadcrumb {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.db-breadcrumb a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.db-breadcrumb a:hover {
+  color: var(--accent);
+}
+
+.db-breadcrumb-sep {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+
+/* --- DB Time Range Selector --- */
+.db-time-range {
+  display: flex;
+  gap: 4px;
+}
+
+.db-time-range-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.db-time-range-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.db-time-range-btn.active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* --- DB Chart Container --- */
+.db-chart {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.db-chart-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.db-chart svg {
+  width: 100%;
+  display: block;
+}
+
+/* --- DB Charts Grid --- */
+.db-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* --- DB Error Rate Bar --- */
+.db-error-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.db-error-bar-name {
+  width: 70px;
+  flex-shrink: 0;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.db-error-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+}
+
+.db-error-bar-success {
+  height: 100%;
+  background: var(--status-complete);
+}
+
+.db-error-bar-error {
+  height: 100%;
+  background: var(--status-failed);
+}
+
+.db-error-bar-pct {
+  width: 44px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* =================================================================
+   DATABASE EXPLORER — Responsive
+   ================================================================= */
+
+@media (max-width: 1200px) {
+  .db-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .db-two-col {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 1024px) {
+  .db-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .db-stat-cards {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .db-stat-card {
+    min-width: 80px;
+    padding: 8px 12px;
+  }
+
+  .db-stat-value {
+    font-size: 18px;
+  }
+
+  .db-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .db-filter-separator {
+    display: none;
+  }
+
+  .db-sub-nav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .db-sub-nav-link {
+    white-space: nowrap;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+/* === DB: Overview + Job History === */
+
+/* === DB: Job Detail + Tool Usage === */
+
+/* === DB: Analytics === */
+
+/* === DB: Events === */

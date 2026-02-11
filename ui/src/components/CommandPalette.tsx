@@ -35,6 +35,13 @@ export function CommandPalette({
     { id: "nav-analytics", label: "Go to Analytics", category: "Navigation", onSelect: () => { window.location.hash = "#/analytics"; onClose(); } },
     { id: "nav-split", label: "Go to Split View", category: "Navigation", onSelect: () => { window.location.hash = "#/split"; onClose(); } },
     { id: "nav-pipeline", label: "Go to Pipeline", category: "Navigation", onSelect: () => { window.location.hash = "#/pipeline"; onClose(); } },
+    { id: "nav-db", label: "Database Overview", category: "Database", onSelect: () => { window.location.hash = "#/db"; onClose(); } },
+    { id: "nav-db-jobs", label: "Browse Job History", category: "Database", onSelect: () => { window.location.hash = "#/db/jobs"; onClose(); } },
+    { id: "nav-db-analytics", label: "View Analytics", category: "Database", onSelect: () => { window.location.hash = "#/db/analytics"; onClose(); } },
+    { id: "nav-db-tools", label: "Tool Usage Explorer", category: "Database", onSelect: () => { window.location.hash = "#/db/tools"; onClose(); } },
+    { id: "nav-db-events", label: "Browse Events", category: "Database", onSelect: () => { window.location.hash = "#/db/events"; onClose(); } },
+    { id: "db-search-file", label: "Search Jobs by File...", category: "Database", onSelect: () => { window.location.hash = "#/db/jobs?search_mode=file"; onClose(); } },
+    { id: "db-search-tool", label: "Search Jobs by Tool...", category: "Database", onSelect: () => { window.location.hash = "#/db/jobs?search_mode=tool"; onClose(); } },
     { id: "action-new", label: "New Agent", category: "Actions", onSelect: () => { onClose(); onNewAgent(); } },
     ...jobs.map((j) => ({
       id: `job-${j.id}`,
