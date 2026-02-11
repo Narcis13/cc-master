@@ -3012,8 +3012,647 @@ h5.md-heading { font-size: 12px; color: var(--text-secondary); }
 
 /* === DB: Overview + Job History === */
 
+/* --- Overview Layout --- */
+.db-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* --- Sparkline --- */
+.db-sparkline-svg {
+  width: 100%;
+  height: 32px;
+  display: block;
+  margin-top: 8px;
+}
+
+.db-sparkline-empty {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* --- Quick Search Override --- */
+.db-search-mode-select {
+  min-width: 110px;
+}
+
+/* --- Job History Browser --- */
+.db-job-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* --- Bulk Stats spacing --- */
+.db-bulk-stats {
+  margin-top: 16px;
+}
+
+/* --- Responsive: Job History table columns --- */
+@media (max-width: 1200px) {
+  .db-job-history .db-table th:nth-child(7),
+  .db-job-history .db-table td:nth-child(7),
+  .db-job-history .db-table th:nth-child(8),
+  .db-job-history .db-table td:nth-child(8) {
+    display: none;
+  }
+}
+
 /* === DB: Job Detail + Tool Usage === */
+
+/* --- Job Detail View --- */
+.jd-view {
+  max-width: 1400px;
+}
+
+.jd-header {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jd-header-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.jd-header-id {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.jd-header-elapsed {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-left: auto;
+}
+
+.jd-header-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.jd-header-meta strong {
+  color: var(--text-primary);
+}
+
+.jd-header-cwd {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.jd-meta-sep {
+  margin: 0 4px;
+  opacity: 0.5;
+}
+
+/* --- Job Detail Sections --- */
+.jd-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.jd-section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.jd-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.jd-section-header h3 {
+  margin-bottom: 0;
+}
+
+/* --- Prompt Display --- */
+.jd-prompt-text {
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--text-primary);
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+/* --- Summary --- */
+.jd-summary-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* --- Token Rows --- */
+.jd-token-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jd-token-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.jd-token-row--total {
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.jd-token-label {
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+
+.jd-token-value {
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.jd-token-cost {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* --- Context Bar --- */
+.jd-context-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.jd-context-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 6px 0 4px;
+}
+
+.jd-context-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jd-context-bar-wrap .context-bar-lg {
+  flex: 1;
+}
+
+/* --- File prefix indicator --- */
+.jd-file-prefix {
+  color: var(--status-complete);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+/* --- Tool Calls Table --- */
+.jd-tc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.jd-tc-num {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  min-width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.jd-tc-filters {
+  display: flex;
+  gap: 4px;
+}
+
+.jd-tc-filter-active {
+  border-color: var(--accent) !important;
+  color: var(--text-primary) !important;
+}
+
+.jd-tc-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Message Stats --- */
+.jd-message-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* --- Empty / Loading / Error --- */
+.jd-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 12px 0;
+}
+
+.jd-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.jd-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--status-failed);
+  font-size: 13px;
+}
+
+/* --- Tool Usage Explorer --- */
+.tu-view {
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tu-recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tu-recent-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.tu-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.tu-calls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tu-job-link {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.tu-job-link:hover {
+  text-decoration: underline;
+}
+
+.tu-detail-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tu-detail-meta strong {
+  color: var(--text-primary);
+}
+
+.tu-detail-actions {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Error Rate Chart Legend --- */
+.tu-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.tu-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tu-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* --- Responsive: Job Detail --- */
+@media (max-width: 1200px) {
+  .jd-view .db-two-col {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .jd-header-top {
+    flex-wrap: wrap;
+  }
+
+  .jd-header-elapsed {
+    margin-left: 0;
+  }
+
+  .tu-recent-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tu-filters {
+    width: 100%;
+  }
+
+  .tu-filters .db-filter-select {
+    flex: 1;
+  }
+}
 
 /* === DB: Analytics === */
 
+.analytics-dashboard {
+  max-width: 1400px;
+}
+
+.analytics-dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.db-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Chart legend */
+.analytics-chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.analytics-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.analytics-chart-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Donut chart layout */
+.analytics-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.analytics-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.analytics-donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analytics-donut-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.analytics-donut-label {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.analytics-donut-pct {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-left: auto;
+}
+
+/* Horizontal bar chart */
+.analytics-hbar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.analytics-hbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.analytics-hbar-label {
+  width: 120px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analytics-hbar-label--mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.analytics-hbar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.analytics-hbar-fill {
+  height: 100%;
+  border-radius: 4px;
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+
+.analytics-hbar-pct {
+  width: 36px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-secondary);
+}
+
+/* Analytics responsive */
+@media (max-width: 768px) {
+  .analytics-dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .analytics-donut-wrap {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .analytics-hbar-label {
+    width: 80px;
+    font-size: 10px;
+  }
+}
+
 /* === DB: Events === */
+
+.db-events-timeline {
+  max-width: 1400px;
+}
+
+.db-events-error-value {
+  color: var(--status-failed);
+}
+
+.db-events-type-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.db-events-type-badge--tool_use {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent);
+}
+
+.db-events-type-badge--file_write {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--status-complete);
+}
+
+.db-events-type-badge--error {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--status-failed);
+}
+
+.db-events-job-link {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.db-events-job-link:hover {
+  text-decoration: underline;
+}
+
+.db-events-row-expanded {
+  background: var(--bg-tertiary);
+}
+
+.db-events-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.db-events-view-job-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.db-events-view-job-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .db-events-data-col {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .db-events-timeline .db-table-wrap {
+    overflow-x: auto;
+  }
+}

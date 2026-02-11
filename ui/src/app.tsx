@@ -10,6 +10,12 @@ import { MetricsChart } from "./components/MetricsChart";
 import { SplitTerminal } from "./components/SplitTerminal";
 import { CommandPalette } from "./components/CommandPalette";
 import { PipelineView } from "./components/PipelineView";
+import { EventsTimeline } from "./components/db/EventsTimeline";
+import { DbOverview } from "./components/db/DbOverview";
+import { JobHistoryBrowser } from "./components/db/JobHistoryBrowser";
+import { JobHistoryDetail } from "./components/db/JobHistoryDetail";
+import { ToolUsageExplorer } from "./components/db/ToolUsageExplorer";
+import { AnalyticsDashboard } from "./components/db/AnalyticsDashboard";
 
 // Database sub-navigation tab bar
 function DbSubNav({ route }: { route: string }) {
@@ -48,17 +54,17 @@ function DbLayout({ route }: { route: string }) {
 
   let content;
   if (dbJobMatch) {
-    content = <div class="db-placeholder">Job History Detail: {dbJobMatch[1]} — Coming Soon</div>;
+    content = <JobHistoryDetail jobId={dbJobMatch[1]} />;
   } else if (route.startsWith("#/db/jobs")) {
-    content = <div class="db-placeholder">Job History Browser — Coming Soon</div>;
+    content = <JobHistoryBrowser />;
   } else if (route.startsWith("#/db/analytics")) {
-    content = <div class="db-placeholder">Analytics Dashboard — Coming Soon</div>;
+    content = <AnalyticsDashboard />;
   } else if (route.startsWith("#/db/tools")) {
-    content = <div class="db-placeholder">Tool Usage Explorer — Coming Soon</div>;
+    content = <ToolUsageExplorer />;
   } else if (route.startsWith("#/db/events")) {
-    content = <div class="db-placeholder">Events Timeline — Coming Soon</div>;
+    content = <EventsTimeline />;
   } else {
-    content = <div class="db-placeholder">Database Overview — Coming Soon</div>;
+    content = <DbOverview />;
   }
 
   return (
