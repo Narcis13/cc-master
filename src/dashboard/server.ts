@@ -183,20 +183,21 @@ async function buildUI(projectRoot: string): Promise<boolean> {
       return false;
     }
 
-    // Write index.html that loads the built JS and CSS
+    // Write index.html that loads the built JS and CSS (cache-bust with timestamp)
+    const cacheBust = Date.now();
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CC-Agent Dashboard</title>
-  <link rel="stylesheet" href="/theme.css">
-  <link rel="stylesheet" href="/layout.css">
-  <link rel="stylesheet" href="/xterm.css">
+  <link rel="stylesheet" href="/theme.css?v=${cacheBust}">
+  <link rel="stylesheet" href="/layout.css?v=${cacheBust}">
+  <link rel="stylesheet" href="/xterm.css?v=${cacheBust}">
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="/index.js"></script>
+  <script type="module" src="/index.js?v=${cacheBust}"></script>
 </body>
 </html>`;
 

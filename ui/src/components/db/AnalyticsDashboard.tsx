@@ -167,17 +167,17 @@ interface TooltipInfo {
 
 function Tooltip({ info }: { info: TooltipInfo | null }) {
   if (!info) return null;
-  const w = Math.max(...info.lines.map((l) => l.length)) * 7 + 16;
-  const h = info.lines.length * 16 + 12;
-  const tx = Math.max(4, Math.min(info.x - w / 2, 600));
-  const ty = Math.max(4, info.y - h - 8);
+  const tipW = Math.max(...info.lines.map((l) => l.length)) * 7 + 16;
+  const tipH = info.lines.length * 16 + 12;
+  const tx = Math.max(4, Math.min(info.x - tipW / 2, 600));
+  const ty = Math.max(4, info.y - tipH - 8);
   return (
     <g>
       <rect
         x={tx}
         y={ty}
-        width={w}
-        height={h}
+        width={tipW}
+        height={tipH}
         rx="4"
         fill="#161b22"
         stroke={COLORS.grid}

@@ -49,24 +49,24 @@ function relativeFromNow(iso: string | null): string {
 function Sparkline({ data }: { data: { date: string; jobs_started: number }[] }) {
   if (data.length === 0) return <span class="db-sparkline-empty">No data</span>;
 
-  const w = 200;
-  const h = 32;
+  const svgW = 200;
+  const svgH = 32;
   const pad = 2;
   const values = data.map((d) => d.jobs_started);
   const max = Math.max(...values, 1);
   const points = values.map((v, i) => {
-    const x = pad + (i / Math.max(values.length - 1, 1)) * (w - pad * 2);
-    const y = h - pad - (v / max) * (h - pad * 2);
+    const x = pad + (i / Math.max(values.length - 1, 1)) * (svgW - pad * 2);
+    const y = svgH - pad - (v / max) * (svgH - pad * 2);
     return `${x},${y}`;
   });
   const polyline = points.join(" ");
   // area fill
   const firstX = pad;
-  const lastX = pad + ((values.length - 1) / Math.max(values.length - 1, 1)) * (w - pad * 2);
-  const areaPath = `M${firstX},${h} L${points.map((p) => p).join(" L")} L${lastX},${h} Z`;
+  const lastX = pad + ((values.length - 1) / Math.max(values.length - 1, 1)) * (svgW - pad * 2);
+  const areaPath = `M${firstX},${svgH} L${points.map((p) => p).join(" L")} L${lastX},${svgH} Z`;
 
   return (
-    <svg class="db-sparkline-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+    <svg class="db-sparkline-svg" viewBox={`0 0 ${svgW} ${svgH}`} preserveAspectRatio="none">
       <path d={areaPath} fill="rgba(188,140,255,0.12)" />
       <polyline points={polyline} fill="none" stroke="var(--accent)" stroke-width="1.5" />
     </svg>

@@ -1,4 +1,4 @@
-import { h } from "preact";
+import { h, Fragment } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { formatDuration, formatTokens, formatRelativeTime } from "../../lib/format";
 

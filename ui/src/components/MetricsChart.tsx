@@ -130,14 +130,14 @@ function drawChart(canvas: HTMLCanvasElement, data: DailyMetric[], type: ChartTy
   canvas.height = rect.height * dpr;
   ctx.scale(dpr, dpr);
 
-  const w = rect.width;
-  const h = rect.height;
+  const cw = rect.width;
+  const ch = rect.height;
   const pad = { top: 20, right: 20, bottom: 40, left: 60 };
-  const chartW = w - pad.left - pad.right;
-  const chartH = h - pad.top - pad.bottom;
+  const chartW = cw - pad.left - pad.right;
+  const chartH = ch - pad.top - pad.bottom;
 
   // Clear
-  ctx.clearRect(0, 0, w, h);
+  ctx.clearRect(0, 0, cw, ch);
 
   // Get values based on chart type
   let series1: number[] = [];
@@ -199,7 +199,7 @@ function drawChart(canvas: HTMLCanvasElement, data: DailyMetric[], type: ChartTy
     const showEvery = data.length > 30 ? 7 : data.length > 14 ? 3 : 1;
     if (i % showEvery === 0) {
       const dateLabel = data[i].date.slice(5); // MM-DD
-      ctx.fillText(dateLabel, x, h - pad.bottom + 20);
+      ctx.fillText(dateLabel, x, ch - pad.bottom + 20);
     }
   }
 
