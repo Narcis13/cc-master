@@ -62,6 +62,9 @@ export function useJobs() {
   const [connected, setConnected] = useState(false);
   const [hookEvents, setHookEvents] = useState<HookEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [orchestratorStatus, setOrchestratorStatus] = useState<string | null>(null);
+  const [contextWarn, setContextWarn] = useState<{ contextPct: number; clearState: string } | null>(null);
+  const [orchestratorEventVersion, setOrchestratorEventVersion] = useState(0);
   const esRef = useRef<EventSource | null>(null);
   const prevJobsRef = useRef<Map<string, string>>(new Map());
 
@@ -184,6 +187,35 @@ export function useJobs() {
       setHookEvents((prev) => [event, ...prev].slice(0, MAX_HOOK_EVENTS));
     });
 
+    // Orchestrator SSE events
+    es.addEventListener("orchestrator_status_change", (e: MessageEvent) => {
+      const data = JSON.parse(e.data);
+      setOrchestratorStatus(data.status);
+      setOrchestratorEventVersion((v) => v + 1);
+    });
+
+    es.addEventListener("orchestrator_context_warn", (e: MessageEvent) => {
+      const data = JSON.parse(e.data);
+      setContextWarn(data);
+      setOrchestratorEventVersion((v) => v + 1);
+    });
+
+    es.addEventListener("queue_update", (e: MessageEvent) => {
+      setOrchestratorEventVersion((v) => v + 1);
+    });
+
+    es.addEventListener("trigger_fired", (e: MessageEvent) => {
+      setOrchestratorEventVersion((v) => v + 1);
+    });
+
+    es.addEventListener("approval_required", (e: MessageEvent) => {
+      setOrchestratorEventVersion((v) => v + 1);
+    });
+
+    es.addEventListener("pulse_tick", (e: MessageEvent) => {
+      setOrchestratorEventVersion((v) => v + 1);
+    });
+
     es.onopen = () => setConnected(true);
     es.onerror = () => setConnected(false);
 
@@ -217,5 +249,8 @@ export function useJobs() {
     markNotificationRead,
     markAllRead,
     dismissNotification,
+    orchestratorStatus,
+    contextWarn,
+    orchestratorEventVersion,
   };
 }

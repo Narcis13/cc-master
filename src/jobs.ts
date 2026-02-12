@@ -145,7 +145,7 @@ function findSessionFilePath(jobId: string): string | null {
   return findSessionFile(sessionId);
 }
 
-function loadSessionData(jobId: string): ParsedSessionData | null {
+export function loadSessionData(jobId: string): ParsedSessionData | null {
   const sessionFile = findSessionFilePath(jobId);
   if (!sessionFile) return null;
   return parseSessionFile(sessionFile);
@@ -313,12 +313,13 @@ export interface StartJobOptions {
   sandbox?: SandboxMode;
   parentSessionId?: string;
   cwd?: string;
+  jobId?: string;
 }
 
 export function startJob(options: StartJobOptions): Job {
   ensureJobsDir();
 
-  const jobId = generateJobId();
+  const jobId = options.jobId || generateJobId();
   const cwd = options.cwd || process.cwd();
 
   const job: Job = {
@@ -518,6 +519,10 @@ export function clearJobContext(jobId: string): { success: boolean; error?: stri
     return { success: false, error: "tmux session no longer exists" };
   }
 
+  // Interrupt any in-progress turn first — /clear only works at the ❯ prompt.
+  // If Claude is mid-turn, keystrokes get queued as pending input.
+  sendControl(job.tmuxSession, "Escape");
+
   const sent = sendMessage(job.tmuxSession, "/clear");
   if (!sent) {
     return { success: false, error: "Failed to send /clear to session" };
@@ -559,14 +564,18 @@ export function reuseJob(jobId: string, newPrompt: string): { success: boolean; 
     return { success: false, error: "tmux session no longer exists" };
   }
 
-  // Send /clear first
+  // Interrupt any in-progress turn first — /clear only works at the ❯ prompt
+  sendControl(job.tmuxSession, "Escape");
+  const { spawnSync } = require("child_process");
+  spawnSync("sleep", ["2"]);
+
+  // Send /clear
   const clearSent = sendMessage(job.tmuxSession, "/clear");
   if (!clearSent) {
     return { success: false, error: "Failed to send /clear to session" };
   }
 
   // Wait for context reset
-  const { spawnSync } = require("child_process");
   spawnSync("sleep", ["3"]);
 
   // Send the new prompt

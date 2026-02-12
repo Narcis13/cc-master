@@ -715,6 +715,94 @@ cc-agent jobs --json
 
 Read the log. Understand current stage. Resume from where you left off.
 
+## Self-Management Commands
+
+When running as the orchestrator instance, you have access to CLI commands for managing your own autonomous behavior. Use these via the Bash tool to configure triggers, process work queues, and switch operational modes.
+
+### Queue Management
+
+Queue tasks for yourself to process during pulse loop ticks:
+
+```bash
+# Add a task to your own queue
+cc-agent queue add "Refactor the auth module to use JWT" --priority 5
+
+# List pending tasks
+cc-agent queue list --status pending
+
+# Remove a task you no longer need
+cc-agent queue remove <id>
+```
+
+The pulse loop automatically picks up the highest-priority pending task when you're idle.
+
+### Trigger Configuration
+
+Create automated triggers that fire based on cron schedules, events (job_completed, job_failed), or metric thresholds:
+
+```bash
+# Cron: inject a prompt every hour
+cc-agent trigger add "hourly-status" cron "0 * * * *" inject_prompt \
+  --payload '{"prompt":"Give a status update on current progress"}' --autonomy auto
+
+# Event: queue a review task when any job completes
+cc-agent trigger add "auto-review" event "job_completed" queue_task \
+  --payload '{"prompt":"Review the changes made by the last completed agent"}' --autonomy auto
+
+# Threshold: clear context when usage exceeds 80%
+cc-agent trigger add "context-guard" threshold "context_used_pct > 80" clear_context --autonomy auto
+
+# List, toggle, or remove triggers
+cc-agent trigger list
+cc-agent trigger toggle <id>
+cc-agent trigger remove <id>
+```
+
+Autonomy levels: `auto` (fires immediately) or `confirm` (requires human approval in dashboard).
+
+### Mode Management
+
+Modes are preset trigger configurations. Activate a mode to replace all current triggers with a predefined set:
+
+```bash
+# List available modes
+cc-agent mode list
+
+# Activate a mode (replaces all current triggers)
+cc-agent mode activate dev
+
+# Save current triggers as a new mode
+cc-agent mode create my-custom-mode --from-current --description "My trigger setup"
+
+# Delete a mode
+cc-agent mode delete my-custom-mode
+```
+
+### Pulse Loop Awareness
+
+The pulse loop is a 10-second heartbeat that drives autonomous behavior:
+
+1. Checks if you (the orchestrator) are running and healthy
+2. Respawns you if crashed
+3. Evaluates all enabled triggers (cron, event, threshold)
+4. Injects the highest-priority queued task when you're idle
+5. Emits `pulse_tick` SSE events for dashboard real-time updates
+
+The pulse runs inside the dashboard process. Start/stop it via:
+
+```bash
+cc-agent pulse start
+cc-agent pulse stop
+cc-agent pulse status
+```
+
+**State persistence**: Before a context clear, save your working state so you can resume:
+
+```bash
+# The orchestrator automatically saves state to orchestrator-state.json
+# This includes: current_task, active_agents, task_history, last_saved
+```
+
 ## When NOT to Use This Pipeline
 
 Basically never. Claude Code agents are the default for all execution work.

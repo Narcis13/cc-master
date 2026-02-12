@@ -22,12 +22,37 @@ eventsApi.get("/", (c) => {
     const onChange = async (event: StateEvent) => {
       try {
         let data: any;
-        if (event.type === "metrics_update") {
-          data = event.metrics;
-        } else if (event.type === "hook_event") {
-          data = event.event;
-        } else {
-          data = (event as any).job;
+        switch (event.type) {
+          case "metrics_update":
+            data = event.metrics;
+            break;
+          case "hook_event":
+            data = event.event;
+            break;
+          case "snapshot":
+            data = { jobs: event.jobs, metrics: event.metrics };
+            break;
+          case "orchestrator_status_change":
+            data = { status: event.status };
+            break;
+          case "orchestrator_context_warn":
+            data = { contextPct: event.contextPct, clearState: event.clearState };
+            break;
+          case "queue_update":
+            data = { task: event.task, operation: event.operation };
+            break;
+          case "trigger_fired":
+            data = { trigger_id: event.trigger_id, trigger_name: event.trigger_name, action: event.action };
+            break;
+          case "approval_required":
+            data = { approval: event.approval };
+            break;
+          case "pulse_tick":
+            data = { summary: event.summary };
+            break;
+          default:
+            data = (event as any).job;
+            break;
         }
         await stream.writeSSE({
           event: event.type,
