@@ -11,7 +11,7 @@ interface PulseStatus {
   orchestrator_running: boolean;
 }
 
-export function PulseIndicator() {
+export function PulseIndicator({ eventVersion = 0 }: { eventVersion?: number } = {}) {
   const [status, setStatus] = useState<PulseStatus | null>(null);
   const [toggling, setToggling] = useState(false);
 
@@ -22,9 +22,12 @@ export function PulseIndicator() {
     } catch {}
   };
 
+  // SSE-driven refetch
+  useEffect(() => { fetchStatus(); }, [eventVersion]);
+
+  // Slow polling fallback
   useEffect(() => {
-    fetchStatus();
-    const iv = setInterval(fetchStatus, 5000);
+    const iv = setInterval(fetchStatus, 30000);
     return () => clearInterval(iv);
   }, []);
 

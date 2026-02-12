@@ -2,6 +2,7 @@ import { h, Fragment } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { TerminalPanel } from "./TerminalPanel";
 import { MessageInput } from "./MessageInput";
+import { showToast } from "./Toast";
 
 interface OrchestratorStatus {
   running: boolean;
@@ -18,7 +19,7 @@ interface OrchestratorStatus {
   contextClearState?: string;
 }
 
-export function OrchestratorPanel() {
+export function OrchestratorPanel({ eventVersion = 0 }: { eventVersion?: number } = {}) {
   const [status, setStatus] = useState<OrchestratorStatus | null>(null);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -31,18 +32,27 @@ export function OrchestratorPanel() {
     } catch {}
   };
 
+  // SSE-driven refetch
+  useEffect(() => { fetchStatus(); }, [eventVersion]);
+
+  // Slow polling fallback
   useEffect(() => {
-    fetchStatus();
-    const iv = setInterval(fetchStatus, 3000);
+    const iv = setInterval(fetchStatus, 15000);
     return () => clearInterval(iv);
   }, []);
 
   const doStart = async () => {
     setStarting(true);
     try {
-      await fetch("/api/orchestrator/start", { method: "POST" });
-      // Give it a moment to spin up
+      const res = await fetch("/api/orchestrator/start", { method: "POST" });
+      if (res.ok) {
+        showToast("success", "Orchestrator started");
+      } else {
+        showToast("error", "Failed to start orchestrator");
+      }
       setTimeout(fetchStatus, 1500);
+    } catch {
+      showToast("error", "Failed to start orchestrator");
     } finally {
       setStarting(false);
     }
@@ -51,8 +61,15 @@ export function OrchestratorPanel() {
   const doStop = async () => {
     setStopping(true);
     try {
-      await fetch("/api/orchestrator/stop", { method: "POST" });
+      const res = await fetch("/api/orchestrator/stop", { method: "POST" });
+      if (res.ok) {
+        showToast("info", "Orchestrator stopped");
+      } else {
+        showToast("error", "Failed to stop orchestrator");
+      }
       setTimeout(fetchStatus, 500);
+    } catch {
+      showToast("error", "Failed to stop orchestrator");
     } finally {
       setStopping(false);
       setConfirmStop(false);

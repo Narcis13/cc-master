@@ -27,11 +27,19 @@ graph TB
         PARSER[src/session-parser.ts]
     end
 
+    subgraph Orchestrator["Autonomous Orchestrator"]
+        ORCH[orchestrator.ts]
+        PULSE[pulse.ts]
+        TRIGGERS[triggers.ts]
+        MODES[modes.ts]
+    end
+
     subgraph Dashboard["Dashboard Server"]
         SERVER[server.ts]
         STATE[state.ts]
         DB[db.ts - SQLite]
         EVENTS[events-reader.ts]
+        EVENT_BUS[event-bus.ts]
         HOOKS_MGR[hooks-manager.ts]
         TERM_STREAM[terminal-stream.ts]
         subgraph API["API Routes"]
@@ -41,6 +49,11 @@ graph TB
             API_ACTIONS[/api/actions]
             API_HOOKS[/api/hook-events]
             API_TERM[/api/terminal WS]
+            API_ORCH[/api/orchestrator]
+            API_QUEUE[/api/queue]
+            API_TRIG[/api/triggers]
+            API_MODES[/api/modes]
+            API_PULSE[/api/pulse]
         end
     end
 
@@ -51,6 +64,7 @@ graph TB
         TERMINAL[TerminalPanel]
         METRICS_VIEW[MetricsChart]
         TIMELINE[Timeline]
+        ORCH_VIEW[OrchestratorView]
     end
 
     subgraph External["External"]
@@ -96,12 +110,24 @@ graph TB
     TERM_STREAM --> JOBS_DIR
     DB --> SQLITE
 
+    ORCH --> TMUX
+    PULSE --> ORCH
+    PULSE --> TRIGGERS
+    PULSE --> DB
+    TRIGGERS --> DB
+    TRIGGERS --> EVENT_BUS
+    MODES --> DB
+    EVENT_BUS --> STATE
+
     APP --> DASH_VIEW
     APP --> DETAIL
     APP --> METRICS_VIEW
     APP --> TIMELINE
+    APP --> ORCH_VIEW
     DETAIL --> TERMINAL
     DASH_VIEW -.->|SSE| API_EVENTS
+    ORCH_VIEW -.->|SSE| API_EVENTS
+    ORCH_VIEW -.->|REST| API_ORCH
     TERMINAL -.->|WebSocket| API_TERM
     METRICS_VIEW -.->|REST| API_METRICS
 ```
@@ -119,11 +145,17 @@ cc-master/
 │   ├── jobs.ts                  # Job lifecycle & persistence (2,905 tok)
 │   ├── session-parser.ts        # Parse Claude session metadata (1,857 tok)
 │   ├── tmux.ts                  # tmux session management (2,427 tok)
+│   ├── orchestrator.ts          # Orchestrator lifecycle: start/stop/status/inject/state
+│   ├── orchestrator/
+│   │   ├── pulse.ts             # 10s heartbeat: queue processing, trigger eval, respawn
+│   │   ├── triggers.ts          # Trigger engine: cron/event/threshold, approval workflow
+│   │   └── modes.ts             # Preset trigger configurations (dev, review, monitor)
 │   └── dashboard/
 │       ├── server.ts            # Hono server, UI bundling, lifecycle (1,693 tok)
 │       ├── state.ts             # In-memory state, fs watching, events (1,467 tok)
 │       ├── db.ts                # SQLite persistence (1,523 tok)
 │       ├── events-reader.ts     # Tail-follow events.jsonl (799 tok)
+│       ├── event-bus.ts         # Internal EventEmitter for orchestrator event propagation
 │       ├── hooks-manager.ts     # Install/remove Claude hooks (1,056 tok)
 │       ├── hooks-relay.sh       # Shell script for hook event relay (411 tok)
 │       ├── terminal-stream.ts   # WebSocket terminal streaming (860 tok)
@@ -132,7 +164,13 @@ cc-master/
 │           ├── events.ts        # SSE: real-time updates (396 tok)
 │           ├── hook-events.ts   # GET: recent hook events (164 tok)
 │           ├── jobs.ts          # GET: job list/detail (215 tok)
-│           └── metrics.ts       # GET: current/historical metrics (233 tok)
+│           ├── metrics.ts       # GET: current/historical metrics (233 tok)
+│           ├── db.ts            # GET: SQLite query endpoints for history browser
+│           ├── orchestrator.ts  # POST/GET: orchestrator start/stop/status/inject
+│           ├── queue.ts         # CRUD: queue task management
+│           ├── triggers.ts      # CRUD: trigger management + activity log
+│           ├── modes.ts         # CRUD: mode management + activation
+│           └── pulse.ts         # POST/GET: pulse loop start/stop/status
 ├── ui/
 │   └── src/
 │       ├── index.tsx            # Preact mount point (30 tok)
@@ -150,7 +188,29 @@ cc-master/
 │       │   ├── SplitTerminal.tsx    # Multi-terminal grid (804 tok)
 │       │   ├── StatusBar.tsx        # Aggregate metrics bar (280 tok)
 │       │   ├── TerminalPanel.tsx    # xterm.js terminal (566 tok)
-│       │   └── Timeline.tsx         # Hook event timeline (961 tok)
+│       │   ├── Timeline.tsx         # Hook event timeline (961 tok)
+│       │   ├── SessionTabs.tsx      # Tab switcher for session views
+│       │   ├── SessionOverview.tsx  # Session summary display
+│       │   ├── ConversationView.tsx # Agent conversation thread view
+│       │   ├── ToolCallList.tsx     # List of tool calls in a session
+│       │   ├── ToolCallItem.tsx     # Individual tool call display
+│       │   ├── CostBadge.tsx        # Token cost display badge
+│       │   ├── OrchestratorView.tsx # Orchestrator tab layout (panels + activity feed)
+│       │   ├── OrchestratorPanel.tsx # Orchestrator start/stop/status controls
+│       │   ├── QueuePanel.tsx       # Task queue management (add/list/remove)
+│       │   ├── TriggerPanel.tsx     # Trigger CRUD (add/toggle/delete)
+│       │   ├── ApprovalsBar.tsx     # Pending approval actions (approve/reject)
+│       │   ├── PulseIndicator.tsx   # Pulse heartbeat status indicator
+│       │   ├── ModeSelector.tsx     # Mode list + activation
+│       │   ├── ActivityFeed.tsx     # Orchestrator activity log
+│       │   ├── Toast.tsx            # Notification toasts for API feedback
+│       │   └── db/
+│       │       ├── DbOverview.tsx       # Database browser landing page
+│       │       ├── JobHistoryBrowser.tsx # Historical job list with filters
+│       │       ├── JobHistoryDetail.tsx  # Single historical job detail
+│       │       ├── EventsTimeline.tsx   # Hook events timeline browser
+│       │       ├── ToolUsageExplorer.tsx # Tool usage analytics
+│       │       └── AnalyticsDashboard.tsx # Analytics charts and metrics
 │       ├── hooks/
 │       │   ├── useJobs.ts       # SSE state management (1,603 tok)
 │       │   └── useTerminal.ts   # WebSocket terminal hook (294 tok)
@@ -335,10 +395,67 @@ cc-master/
 
 ---
 
+### Orchestrator: `src/orchestrator.ts`
+
+**Purpose**: Orchestrator lifecycle management — start/stop the `cc-agent-orch` tmux session, query status, inject messages, persist state.
+
+**Key Exports**: `startOrchestrator()`, `stopOrchestrator()`, `getOrchestratorStatus()`, `injectToOrchestrator()`, `saveOrchestratorState()`, `ORCH_JOB_ID`
+
+**Key Behaviors**:
+- Orchestrator runs in a dedicated `cc-agent-orch` tmux session
+- State persisted to `orchestrator-state.json` (current task, active agents, history)
+- Status checks combine tmux session existence, log file idle detection, and context usage
+
+---
+
+### Orchestrator: `src/orchestrator/pulse.ts`
+
+**Purpose**: 10-second heartbeat loop driving autonomous behavior — queue processing, trigger evaluation, orchestrator health monitoring, respawn.
+
+**Key Exports**: `startPulse()`, `stopPulse()`, `getPulseStatus()`, `pulseTick()`
+
+**Key Behaviors**:
+- Runs inside the dashboard process via `setInterval`
+- Each tick: check orchestrator health, evaluate triggers, process queue if idle
+- Respawns crashed orchestrator automatically
+- Emits `pulse_tick` SSE event with summary at end of each tick
+
+---
+
+### Orchestrator: `src/orchestrator/triggers.ts`
+
+**Purpose**: Trigger engine — evaluates cron, event, and threshold triggers; manages approval workflow for `confirm` autonomy level.
+
+**Key Exports**: `evaluateTriggers()`, `fireTrigger()`, `addTrigger()`, `getTriggers()`, `toggleTrigger()`, `removeTrigger()`, `getMetricValue()`, `getPendingApprovals()`, `approveAction()`, `rejectAction()`
+
+**Key Behaviors**:
+- Cron triggers: parsed via cron expression matching against current time
+- Event triggers: fire on `job_completed`, `job_failed` events
+- Threshold triggers: compare metrics (`context_used_pct`, `queue_depth`, `active_agents`, `idle_seconds`) against condition
+- Autonomy `auto`: fires immediately. `confirm`: creates pending approval in dashboard
+- Cooldown enforcement prevents rapid re-firing
+
+---
+
+### Orchestrator: `src/orchestrator/modes.ts`
+
+**Purpose**: Preset trigger configurations — activate a mode to replace all triggers with a predefined set.
+
+**Key Exports**: `getModes()`, `getActiveMode()`, `activateModeByName()`, `createModeFromCurrent()`
+
+---
+
+### Dashboard: `src/dashboard/event-bus.ts`
+
+**Purpose**: Internal EventEmitter for propagating orchestrator events (trigger_fired, queue_update, etc.) from orchestrator modules to `state.ts` for SSE broadcast.
+
+---
+
 ### Dashboard API Routes
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
+| `/api/health` | GET | Health check |
 | `/api/jobs` | GET | List all jobs (enriched) |
 | `/api/jobs/:id` | GET | Single job detail (refreshes status) |
 | `/api/events` | GET | SSE stream (snapshot + push updates, 30s heartbeat) |
@@ -350,6 +467,30 @@ cc-master/
 | `/api/actions/jobs/:id/kill` | POST | Kill agent |
 | `/api/hook-events?limit=50` | GET | Recent hook events |
 | `/api/terminal/:jobId` | WS | Terminal output streaming |
+| `/api/orchestrator/start` | POST | Start orchestrator instance |
+| `/api/orchestrator/stop` | POST | Stop orchestrator instance |
+| `/api/orchestrator/status` | GET | Orchestrator status + state |
+| `/api/orchestrator/inject` | POST | Inject message into orchestrator |
+| `/api/queue/tasks` | GET | List queue tasks |
+| `/api/queue/tasks` | POST | Add queue task |
+| `/api/queue/tasks/:id` | PATCH | Update queue task status |
+| `/api/queue/tasks/:id` | DELETE | Remove queue task |
+| `/api/triggers` | GET | List triggers |
+| `/api/triggers` | POST | Add trigger |
+| `/api/triggers/:id` | PATCH | Update trigger |
+| `/api/triggers/:id` | DELETE | Remove trigger |
+| `/api/triggers/:id/toggle` | POST | Toggle trigger enabled state |
+| `/api/triggers/activity` | GET | Activity log entries |
+| `/api/triggers/approvals` | GET | Pending approvals |
+| `/api/triggers/approvals/:id/approve` | POST | Approve pending action |
+| `/api/triggers/approvals/:id/reject` | POST | Reject pending action |
+| `/api/modes` | GET | List modes |
+| `/api/modes` | POST | Create mode |
+| `/api/modes/:name/activate` | POST | Activate mode |
+| `/api/modes/:name` | DELETE | Delete mode |
+| `/api/pulse/start` | POST | Start pulse loop |
+| `/api/pulse/stop` | POST | Stop pulse loop |
+| `/api/pulse/status` | GET | Pulse status + summary |
 
 ---
 
@@ -357,7 +498,7 @@ cc-master/
 
 **Purpose**: Root Preact component — hash-based routing, global keyboard shortcuts, modal management.
 
-**Routes**: `#/` (Dashboard), `#/jobs/:id` (JobDetail), `#/timeline`, `#/notifications`, `#/analytics`, `#/split`, `#/pipeline`
+**Routes**: `#/` (Dashboard), `#/jobs/:id` (JobDetail), `#/timeline`, `#/notifications`, `#/analytics`, `#/split`, `#/pipeline`, `#/orchestrator` (OrchestratorView)
 
 **Shortcuts**: `N` = new agent, `/` = focus search, `?` = help, `Ctrl+K` = command palette, `Esc` = close modals
 
@@ -387,13 +528,29 @@ cc-master/
 App
 ├── Topbar (nav links, Ctrl+K button, New Agent button, connection dot)
 ├── Content (hash-routed)
-│   ├── Dashboard → StatusBar + JobCard[]
-│   ├── JobDetail → TerminalPanel + MessageInput + Timeline (filtered)
+│   ├── Dashboard → StatusBar + JobCard[] (with CostBadge)
+│   ├── JobDetail → SessionTabs + TerminalPanel + ConversationView + MessageInput
+│   │   ├── ConversationView → ToolCallList → ToolCallItem[]
+│   │   └── SessionOverview
 │   ├── Timeline
 │   ├── NotificationCenter
 │   ├── MetricsChart (canvas-rendered, no charting lib)
 │   ├── SplitTerminal → TerminalPanel[] (1x1, 2x1, 2x2 layouts)
-│   └── PipelineView (Gantt-style bars)
+│   ├── PipelineView (Gantt-style bars)
+│   ├── DbOverview (database browser)
+│   │   ├── JobHistoryBrowser → JobHistoryDetail
+│   │   ├── EventsTimeline
+│   │   ├── ToolUsageExplorer
+│   │   └── AnalyticsDashboard
+│   └── OrchestratorView
+│       ├── OrchestratorPanel (start/stop/status + context lifecycle)
+│       ├── PulseIndicator (heartbeat status)
+│       ├── ModeSelector (mode list + activation)
+│       ├── ApprovalsBar (pending approval actions)
+│       ├── QueuePanel (task queue CRUD)
+│       ├── TriggerPanel (trigger CRUD)
+│       ├── ActivityFeed (orchestrator activity log)
+│       └── Toast (API feedback notifications)
 └── Modals: NewJobForm, CommandPalette, Help
 ```
 
@@ -521,8 +678,9 @@ sequenceDiagram
 │   ├── <jobId>.prompt        # Original prompt text
 │   └── <jobId>.log           # Terminal output (via script command)
 ├── dashboard.pid             # Dashboard process ID
-├── dashboard.db              # SQLite (job history, metrics, hook events)
+├── dashboard.db              # SQLite (jobs, metrics, hooks, queue, triggers, modes, activity)
 ├── events.jsonl              # Hook event stream (appended by relay)
+├── orchestrator-state.json   # Orchestrator state (current task, agents, history)
 └── hooks/
     └── relay-event.sh        # Installed hook relay script
 ```
@@ -579,3 +737,11 @@ sequenceDiagram
 **To change default config**: Edit `src/config.ts`
 
 **To change theme/colors**: Edit `ui/src/styles/theme.css`
+
+**To add a new trigger action**: Edit `src/orchestrator/triggers.ts` (`fireTrigger()` switch)
+
+**To add a new metric for threshold triggers**: Edit `src/orchestrator/triggers.ts` (`getMetricValue()`)
+
+**To add a new orchestrator SSE event**: Add type to `StateEvent` in `src/dashboard/state.ts`, emit via `event-bus.ts`
+
+**To add a preset mode**: Insert into `orchestrator_modes` table via `src/dashboard/db.ts`

@@ -27,6 +27,7 @@ import {
   getTriggers,
 } from "../dashboard/db.ts";
 import type { DashboardState, StateEvent } from "../dashboard/state.ts";
+import orchestratorBus from "../dashboard/event-bus.ts";
 
 const TICK_INTERVAL_MS = 10_000;
 const IDLE_THRESHOLD_MS = 30_000; // 30s since last log change = idle
@@ -93,6 +94,17 @@ function pulseTick(): void {
           console.error("[pulse] Failed to respawn orchestrator:", result.error);
         }
       }
+      // Emit pulse_tick even when orchestrator is down
+      orchestratorBus.emit("state_event", {
+        type: "pulse_tick",
+        summary: {
+          orchestrator_running: false,
+          queue_depth: getQueueDepth(),
+          active_triggers: getTriggers(true).length,
+          pending_approvals: getPendingApprovals().length,
+          last_tick: new Date(lastTickTime).toISOString(),
+        },
+      });
       return; // Skip triggers/queue if orchestrator is down
     }
 
@@ -157,6 +169,18 @@ function pulseTick(): void {
         });
       }
     }
+
+    // Emit pulse_tick summary for SSE subscribers
+    orchestratorBus.emit("state_event", {
+      type: "pulse_tick",
+      summary: {
+        orchestrator_running: true,
+        queue_depth: getQueueDepth(),
+        active_triggers: getTriggers(true).length,
+        pending_approvals: getPendingApprovals().length,
+        last_tick: new Date(lastTickTime).toISOString(),
+      },
+    });
   } catch (err) {
     // Catch all errors per-tick to prevent the loop from crashing
     console.error("[pulse] Tick error:", err);

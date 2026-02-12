@@ -1,6 +1,7 @@
 import { h } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { formatRelativeTime } from "../lib/format";
+import { showToast } from "./Toast";
 
 interface PendingApproval {
   id: string;
@@ -11,7 +12,7 @@ interface PendingApproval {
   created_at: string;
 }
 
-export function ApprovalsBar() {
+export function ApprovalsBar({ eventVersion = 0 }: { eventVersion?: number } = {}) {
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
   const [actingOn, setActingOn] = useState<string | null>(null);
 
@@ -25,17 +26,27 @@ export function ApprovalsBar() {
     } catch {}
   };
 
+  // SSE-driven refetch
+  useEffect(() => { fetchApprovals(); }, [eventVersion]);
+
+  // Slow polling fallback
   useEffect(() => {
-    fetchApprovals();
-    const iv = setInterval(fetchApprovals, 3000);
+    const iv = setInterval(fetchApprovals, 30000);
     return () => clearInterval(iv);
   }, []);
 
   const approve = async (id: string) => {
     setActingOn(id);
     try {
-      await fetch(`/api/triggers/approvals/${id}/approve`, { method: "POST" });
+      const res = await fetch(`/api/triggers/approvals/${id}/approve`, { method: "POST" });
+      if (res.ok) {
+        showToast("success", "Action approved");
+      } else {
+        showToast("error", "Failed to approve");
+      }
       fetchApprovals();
+    } catch {
+      showToast("error", "Failed to approve");
     } finally {
       setActingOn(null);
     }
@@ -44,8 +55,15 @@ export function ApprovalsBar() {
   const reject = async (id: string) => {
     setActingOn(id);
     try {
-      await fetch(`/api/triggers/approvals/${id}/reject`, { method: "POST" });
+      const res = await fetch(`/api/triggers/approvals/${id}/reject`, { method: "POST" });
+      if (res.ok) {
+        showToast("info", "Action rejected");
+      } else {
+        showToast("error", "Failed to reject");
+      }
       fetchApprovals();
+    } catch {
+      showToast("error", "Failed to reject");
     } finally {
       setActingOn(null);
     }

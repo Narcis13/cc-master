@@ -7,10 +7,20 @@ import { config } from "../config.ts";
 import { getJobsJson, getJobSession, loadJob, refreshJobStatus, clearJobContext, sendToJob, sendControlToJob, type JobsJsonEntry, type JobsJsonOutput } from "../jobs.ts";
 import { mkdirSync, existsSync, statSync } from "fs";
 import { getEventsReader, type HookEvent } from "./events-reader.ts";
-import { recordJobCompletion, recordHookEvent, truncatePreview } from "./db.ts";
+import { recordJobCompletion, recordHookEvent, truncatePreview, type QueueTask } from "./db.ts";
 import { getOrchestratorStatus, injectToOrchestrator, saveOrchestratorState, ORCH_JOB_ID } from "../orchestrator.ts";
+import type { PendingApproval } from "../orchestrator/triggers.ts";
+import orchestratorBus from "./event-bus.ts";
 
 export type ContextClearState = "idle" | "warned" | "interrupting" | "clearing" | "resuming";
+
+export interface PulseSummary {
+  orchestrator_running: boolean;
+  queue_depth: number;
+  active_triggers: number;
+  pending_approvals: number;
+  last_tick: string;
+}
 
 export type StateEvent =
   | { type: "snapshot"; jobs: JobsJsonEntry[]; metrics: DashboardMetrics }
@@ -21,7 +31,11 @@ export type StateEvent =
   | { type: "metrics_update"; metrics: DashboardMetrics }
   | { type: "hook_event"; event: HookEvent }
   | { type: "orchestrator_status_change"; status: "started" | "stopped" | "clearing" | "resuming" }
-  | { type: "orchestrator_context_warn"; contextPct: number; clearState: ContextClearState };
+  | { type: "orchestrator_context_warn"; contextPct: number; clearState: ContextClearState }
+  | { type: "queue_update"; task: QueueTask; operation: "added" | "removed" | "status_changed" }
+  | { type: "trigger_fired"; trigger_id: number; trigger_name: string; action: string }
+  | { type: "approval_required"; approval: PendingApproval }
+  | { type: "pulse_tick"; summary: PulseSummary };
 
 export interface DashboardMetrics {
   totalJobs: number;
@@ -41,6 +55,7 @@ export class DashboardState extends EventEmitter {
   private startedAt = Date.now();
   private debounceTimer: Timer | null = null;
   private onHookEvent: ((event: HookEvent) => void) | null = null;
+  private onBusEvent: ((event: StateEvent) => void) | null = null;
 
   // Context lifecycle manager state
   private contextClearState: ContextClearState = "idle";
@@ -79,6 +94,12 @@ export class DashboardState extends EventEmitter {
       }
     };
     eventsReader.on("event", this.onHookEvent);
+
+    // Forward cross-module events from the bus
+    this.onBusEvent = (event: StateEvent) => {
+      this.emit("change", event);
+    };
+    orchestratorBus.on("state_event", this.onBusEvent);
   }
 
   stop() {
@@ -91,6 +112,10 @@ export class DashboardState extends EventEmitter {
       const eventsReader = getEventsReader();
       eventsReader.off("event", this.onHookEvent);
       this.onHookEvent = null;
+    }
+    if (this.onBusEvent) {
+      orchestratorBus.off("state_event", this.onBusEvent);
+      this.onBusEvent = null;
     }
   }
 

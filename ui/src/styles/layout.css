@@ -4389,3 +4389,181 @@ h5.md-heading { font-size: 12px; color: var(--text-secondary); }
   gap: 6px;
   flex-shrink: 0;
 }
+
+/* Activity Feed */
+
+.activity-feed {
+  margin-top: 12px;
+}
+
+.activity-count {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.activity-toggle {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.activity-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-icon {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.activity-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.activity-details {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Toast Notifications */
+
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: toast-in 0.25s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 360px;
+}
+
+.toast--success {
+  background: var(--status-complete);
+  color: #fff;
+}
+
+.toast--error {
+  background: var(--status-failed);
+  color: #fff;
+}
+
+.toast--info {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.toast-text {
+  line-height: 1.4;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Queue Task Detail (expandable) ===== */
+
+.queue-task-detail {
+  padding: 8px 14px 8px 28px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.queue-task-prompt {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-tertiary);
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.queue-task-times {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.queue-task-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* ===== Trigger Edit Inline Form ===== */
+
+.trigger-edit-form {
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+}
+
+/* ===== Mode Trigger Preview ===== */
+
+.mode-trigger-preview {
+  padding: 6px 14px 8px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.mode-trigger-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}

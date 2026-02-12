@@ -2,12 +2,13 @@
 
 import { Hono } from "hono";
 import { startPulse, stopPulse, getPulseStatus } from "../../orchestrator/pulse.ts";
+import { getDashboardState } from "../state.ts";
 
 const pulseApi = new Hono();
 
 // POST /api/pulse/start
 pulseApi.post("/start", (c) => {
-  const result = startPulse();
+  const result = startPulse(getDashboardState());
   if (result.success) {
     return c.json({ ok: true });
   }

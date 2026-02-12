@@ -2,6 +2,8 @@
 // Supports cron, event, and threshold trigger types
 
 import { randomUUID } from "crypto";
+import { statSync } from "fs";
+import { join } from "path";
 import {
   getTriggers,
   updateTrigger,
@@ -14,8 +16,11 @@ import {
   injectToOrchestrator,
   startOrchestrator,
   getOrchestratorStatus,
+  ORCH_JOB_ID,
 } from "../orchestrator.ts";
+import { config } from "../config.ts";
 import { listJobs } from "../jobs.ts";
+import orchestratorBus from "../dashboard/event-bus.ts";
 
 // --- Pending Approvals (in-memory, ephemeral) ---
 
@@ -115,6 +120,15 @@ function getMetricValue(metric: string): number | null {
       const jobs = listJobs();
       return jobs.filter((j) => j.status === "running").length;
     }
+    case "idle_seconds": {
+      try {
+        const logFile = join(config.jobsDir, `${ORCH_JOB_ID}.log`);
+        const mtime = statSync(logFile).mtimeMs;
+        return Math.round((Date.now() - mtime) / 1000);
+      } catch {
+        return null;
+      }
+    }
     default:
       return null;
   }
@@ -202,6 +216,12 @@ function fireTrigger(trigger: TriggerRecord): void {
 
   if (trigger.autonomy === "auto") {
     executeAction(trigger.action, trigger.action_payload, trigger.id);
+    orchestratorBus.emit("state_event", {
+      type: "trigger_fired",
+      trigger_id: trigger.id,
+      trigger_name: trigger.name,
+      action: trigger.action,
+    });
   } else {
     // Add to pending approvals
     const approval: PendingApproval = {
@@ -213,6 +233,16 @@ function fireTrigger(trigger: TriggerRecord): void {
       created_at: new Date().toISOString(),
     };
     pendingApprovals.push(approval);
+    orchestratorBus.emit("state_event", {
+      type: "trigger_fired",
+      trigger_id: trigger.id,
+      trigger_name: trigger.name,
+      action: trigger.action,
+    });
+    orchestratorBus.emit("state_event", {
+      type: "approval_required",
+      approval,
+    });
     logActivity({
       action: "approval_required",
       details: { trigger_name: trigger.name, approval_id: approval.id },

@@ -18,6 +18,7 @@ import { JobHistoryDetail } from "./components/db/JobHistoryDetail";
 import { ToolUsageExplorer } from "./components/db/ToolUsageExplorer";
 import { AnalyticsDashboard } from "./components/db/AnalyticsDashboard";
 import { OrchestratorView } from "./components/OrchestratorView";
+import { ToastContainer } from "./components/Toast";
 
 // Database sub-navigation tab bar
 function DbSubNav({ route }: { route: string }) {
@@ -88,6 +89,7 @@ export function App() {
     markNotificationRead,
     markAllRead,
     dismissNotification,
+    orchestratorEventVersion,
   } = useJobs();
   const [route, setRoute] = useState(window.location.hash || "#/");
   const [showNewJob, setShowNewJob] = useState(false);
@@ -198,7 +200,7 @@ export function App() {
       </header>
       <main class="content">
         {isOrchestrator ? (
-          <OrchestratorView />
+          <OrchestratorView orchestratorEventVersion={orchestratorEventVersion} />
         ) : isDatabase ? (
           <DbLayout route={route} />
         ) : isAnalytics ? (
@@ -251,6 +253,8 @@ export function App() {
           </div>
         </div>
       )}
+
+      <ToastContainer />
     </div>
   );
 }

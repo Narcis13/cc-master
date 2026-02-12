@@ -4,6 +4,7 @@
 import { Database } from "bun:sqlite";
 import path from "path";
 import { config } from "../config.ts";
+import orchestratorBus from "./event-bus.ts";
 
 const DB_PATH = path.join(config.jobsDir, "..", "dashboard.db");
 
@@ -953,7 +954,12 @@ export function addQueueTask(opts: { prompt: string; priority?: number; metadata
     `INSERT INTO orchestrator_queue (prompt, priority, metadata) VALUES (?, ?, ?)`,
     [opts.prompt, opts.priority ?? 0, opts.metadata ? JSON.stringify(opts.metadata) : null]
   );
-  return Number(result.lastInsertRowid);
+  const id = Number(result.lastInsertRowid);
+  const task = db.query<QueueTask, [number]>(`SELECT * FROM orchestrator_queue WHERE id = ?`).get(id);
+  if (task) {
+    orchestratorBus.emit("state_event", { type: "queue_update", task, operation: "added" });
+  }
+  return id;
 }
 
 export function getQueueTasks(status?: string): QueueTask[] {
@@ -991,12 +997,22 @@ export function updateQueueTask(id: number, updates: { status?: string; started_
   if (sets.length === 0) return false;
   params.push(id);
   const result = db.run(`UPDATE orchestrator_queue SET ${sets.join(", ")} WHERE id = ?`, params);
+  if (result.changes > 0) {
+    const task = db.query<QueueTask, [number]>(`SELECT * FROM orchestrator_queue WHERE id = ?`).get(id);
+    if (task) {
+      orchestratorBus.emit("state_event", { type: "queue_update", task, operation: "status_changed" });
+    }
+  }
   return result.changes > 0;
 }
 
 export function removeQueueTask(id: number): boolean {
   const db = getDb();
+  const task = db.query<QueueTask, [number]>(`SELECT * FROM orchestrator_queue WHERE id = ?`).get(id);
   const result = db.run(`DELETE FROM orchestrator_queue WHERE id = ?`, [id]);
+  if (result.changes > 0 && task) {
+    orchestratorBus.emit("state_event", { type: "queue_update", task, operation: "removed" });
+  }
   return result.changes > 0;
 }
 

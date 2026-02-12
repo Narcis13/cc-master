@@ -32,6 +32,7 @@ Each Claude Code agent runs in its own tmux session with full terminal output lo
 - [Core Concepts](#core-concepts)
 - [CLI Reference](#cli-reference)
 - [The Factory Pipeline](#the-factory-pipeline)
+- [Autonomous Orchestrator](#autonomous-orchestrator)
 - [Web Dashboard](#web-dashboard)
 - [Claude Code Plugin](#claude-code-plugin)
 - [Codebase Maps](#codebase-maps)
@@ -534,6 +535,145 @@ cc-agent start "Run typecheck and all tests. Fix any failures." --map
 
 ---
 
+## Autonomous Orchestrator
+
+The autonomous orchestrator extends cc-agent with a self-managing Claude Code instance that processes task queues, responds to triggers, and maintains itself via a continuous pulse loop.
+
+### Architecture
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         Pulse Loop (10s)             │
+                    │                                     │
+                    │  ┌──────────┐   ┌───────────────┐   │
+                    │  │ Health   │   │ Evaluate      │   │
+                    │  │ Check    │──>│ Triggers      │   │
+                    │  └──────────┘   └───────┬───────┘   │
+                    │       │                 │           │
+                    │       v                 v           │
+                    │  ┌──────────┐   ┌───────────────┐   │
+                    │  │ Respawn  │   │ Fire Actions  │   │
+                    │  │ if dead  │   │ (auto/confirm)│   │
+                    │  └──────────┘   └───────────────┘   │
+                    │       │                             │
+                    │       v                             │
+                    │  ┌──────────────────┐               │
+                    │  │ Process Queue    │               │
+                    │  │ (if idle)        │               │
+                    │  └──────────────────┘               │
+                    └─────────────────────────────────────┘
+                                    │
+                                    v
+                    ┌───────────────────────────────────┐
+                    │   Orchestrator (cc-agent-orch)     │
+                    │   Dedicated Claude Code instance   │
+                    └───────────────────────────────────┘
+```
+
+### Autonomy Levels
+
+Triggers support two autonomy levels that control how actions are executed:
+
+| Level | Behavior | Use Case |
+|-------|----------|----------|
+| `auto` | Action fires immediately when trigger condition is met | Routine tasks: status checks, context clears, queue processing |
+| `confirm` | Action creates a pending approval visible in the dashboard; a human must approve or reject before execution | Destructive or high-impact actions: code changes, deployments, large prompts |
+
+### Quick Start
+
+```bash
+# 1. Start the orchestrator instance
+cc-agent orchestrator start
+
+# 2. The pulse loop auto-starts with the dashboard
+cc-agent pulse status
+
+# 3. Activate a preset mode (installs trigger set)
+cc-agent mode activate dev
+
+# 4. Queue work for the orchestrator
+cc-agent queue add "Refactor the auth module" --priority 5
+
+# 5. Watch it work -- the pulse loop picks up the task when idle
+cc-agent orchestrator status
+```
+
+### Orchestrator CLI
+
+```bash
+# Lifecycle
+cc-agent orchestrator start [--model opus] [--reasoning xhigh]
+cc-agent orchestrator stop
+cc-agent orchestrator status
+cc-agent orchestrator inject "message to send"
+
+# Task queue
+cc-agent queue add "prompt" [--priority N]
+cc-agent queue list [--status pending]
+cc-agent queue remove <id>
+
+# Triggers
+cc-agent trigger add <name> <type> <condition> <action> [--payload '...'] [--autonomy auto|confirm] [--cooldown 60]
+cc-agent trigger list
+cc-agent trigger toggle <id>
+cc-agent trigger remove <id>
+
+# Trigger types: cron, event, threshold
+# Trigger actions: inject_prompt, clear_context, start_orchestrator, queue_task, notify
+
+# Modes (preset trigger configurations)
+cc-agent mode list
+cc-agent mode activate <name>
+cc-agent mode create <name> [--description "..."] [--from-current]
+cc-agent mode delete <name>
+
+# Pulse loop
+cc-agent pulse start
+cc-agent pulse stop
+cc-agent pulse status
+```
+
+### Orchestrator API
+
+The dashboard exposes REST endpoints for orchestrator management:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/orchestrator/start` | POST | Start orchestrator instance |
+| `/api/orchestrator/stop` | POST | Stop orchestrator instance |
+| `/api/orchestrator/status` | GET | Orchestrator status and state |
+| `/api/orchestrator/inject` | POST | Inject message into orchestrator |
+| `/api/queue/tasks` | GET/POST | List or add queue tasks |
+| `/api/queue/tasks/:id` | PATCH/DELETE | Update or remove queue task |
+| `/api/triggers` | GET/POST | List or create triggers |
+| `/api/triggers/:id` | PATCH/DELETE | Update or remove trigger |
+| `/api/triggers/:id/toggle` | POST | Toggle trigger enabled state |
+| `/api/triggers/approvals` | GET | List pending approvals |
+| `/api/triggers/approvals/:id/approve` | POST | Approve a pending action |
+| `/api/triggers/approvals/:id/reject` | POST | Reject a pending action |
+| `/api/triggers/activity` | GET | Orchestrator activity log |
+| `/api/modes` | GET/POST | List or create modes |
+| `/api/modes/:name/activate` | POST | Activate a mode |
+| `/api/modes/:name` | DELETE | Delete a mode |
+| `/api/pulse/start` | POST | Start pulse loop |
+| `/api/pulse/stop` | POST | Stop pulse loop |
+| `/api/pulse/status` | GET | Pulse status and summary |
+
+### SSE Events
+
+The orchestrator emits real-time events over the existing SSE stream (`/api/events`):
+
+| Event Type | Payload | When |
+|-----------|---------|------|
+| `orchestrator_status_change` | `{ status }` | Orchestrator starts, stops, clears, or resumes |
+| `orchestrator_context_warn` | `{ contextPct, clearState }` | Context usage exceeds threshold |
+| `queue_update` | `{ task, operation }` | Queue task added, removed, or status changed |
+| `trigger_fired` | `{ trigger_id, trigger_name, action }` | A trigger fires |
+| `approval_required` | `{ approval }` | A `confirm` trigger creates pending approval |
+| `pulse_tick` | `{ summary }` | Each 10s pulse tick completes |
+
+---
+
 ## Web Dashboard
 
 CC Orchestrator includes a full web dashboard for real-time monitoring and control of your agent army.
@@ -1031,6 +1171,46 @@ cc-agent jobs --json
 3. Refine the approach -- add context about what failed
 4. Consider splitting into smaller tasks
 
+### Orchestrator Won't Start
+
+```bash
+# Check if already running
+cc-agent orchestrator status
+
+# Check for existing tmux session
+tmux list-sessions | grep orch
+
+# Kill stale session and retry
+tmux kill-session -t cc-agent-orch
+cc-agent orchestrator start
+```
+
+### Pulse Loop Not Processing Queue
+
+```bash
+# Verify pulse is running
+cc-agent pulse status
+
+# Check that the orchestrator is idle (not mid-task)
+cc-agent orchestrator status
+
+# Queue depth should be > 0
+cc-agent queue list
+```
+
+The pulse only injects tasks when the orchestrator is idle (no recent log file changes). If the orchestrator is actively working, the queue waits.
+
+### Trigger Not Firing
+
+```bash
+# Verify the trigger is enabled
+cc-agent trigger list
+
+# Check cooldown -- triggers won't re-fire within cooldown_seconds
+# Check the activity log for recent firings
+curl http://localhost:3131/api/triggers/activity?limit=10
+```
+
 ---
 
 ## Architecture
@@ -1053,12 +1233,20 @@ src/files.ts                File loading, glob matching, codebase map resolution
   |
 src/session-parser.ts       Parse Claude session files for token usage + files modified
   |
+src/orchestrator.ts         Orchestrator lifecycle: start/stop/status/inject, state persistence
+  |
+src/orchestrator/
+  pulse.ts                  10s heartbeat: queue processing, trigger eval, respawn
+  triggers.ts               Trigger engine: cron/event/threshold, approval workflow
+  modes.ts                  Preset trigger configurations
+  |
 src/dashboard/
   server.ts                 Hono web server + Bun.serve with WebSocket upgrade + auto-start/stop
   state.ts                  Reactive state manager (fs.watch + polling + EventEmitter)
   db.ts                     SQLite persistence (bun:sqlite -- zero external deps)
   terminal-stream.ts        WebSocket terminal streaming (byte-offset delta reads)
   events-reader.ts          Tail-follow of events.jsonl for hook events
+  event-bus.ts              Internal event bus for orchestrator event propagation
   hooks-manager.ts          Install/remove Claude Code hooks in settings.json
   hooks-relay.sh            Shell script relaying hook data to events.jsonl
   api/
@@ -1067,6 +1255,11 @@ src/dashboard/
     events.ts               SSE event stream with snapshot + deltas
     metrics.ts              Aggregate + historical metrics (7d/30d/90d)
     hook-events.ts          Recent hook event retrieval
+    orchestrator.ts         Orchestrator lifecycle API
+    queue.ts                Queue task CRUD
+    triggers.ts             Trigger CRUD + activity log + approvals
+    modes.ts                Mode CRUD + activation
+    pulse.ts                Pulse loop start/stop/status
 
 ui/src/                     Preact SPA (auto-built by Bun.build on dashboard start)
   app.tsx                   Hash router, global keyboard shortcuts, layout
@@ -1084,6 +1277,15 @@ ui/src/                     Preact SPA (auto-built by Bun.build on dashboard sta
     SplitTerminal.tsx       Side-by-side terminal view
     CommandPalette.tsx      Ctrl+K fuzzy-search launcher
     PipelineView.tsx        Gantt-chart job timeline
+    OrchestratorView.tsx    Orchestrator tab layout
+    OrchestratorPanel.tsx   Orchestrator start/stop/status controls
+    QueuePanel.tsx          Task queue management
+    TriggerPanel.tsx        Trigger CRUD
+    ApprovalsBar.tsx        Pending approval actions
+    PulseIndicator.tsx      Pulse heartbeat status
+    ModeSelector.tsx        Mode list + activation
+    ActivityFeed.tsx        Orchestrator activity log
+    Toast.tsx               API feedback notifications
 ```
 
 ### Key Design Decisions
