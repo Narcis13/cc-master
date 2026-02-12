@@ -10,9 +10,14 @@ import { actionsApi } from "./api/actions.ts";
 import { hookEventsApi } from "./api/hook-events.ts";
 import { dbApi } from "./api/db.ts";
 import { orchestratorApi } from "./api/orchestrator.ts";
+import { queueApi } from "./api/queue.ts";
+import { triggersApi } from "./api/triggers.ts";
+import { pulseApi } from "./api/pulse.ts";
+import { modesApi } from "./api/modes.ts";
 import { getDashboardState } from "./state.ts";
 import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
 import { sendToJob } from "../jobs.ts";
+import { startPulse } from "../orchestrator/pulse.ts";
 
 export const DEFAULT_PORT = 3131;
 const PIDFILE = path.join(process.env.HOME!, ".cc-agent", "dashboard.pid");
@@ -66,6 +71,10 @@ export function createDashboardApp() {
 
   // API routes
   app.get("/api/health", (c) => c.json({ status: "ok" }));
+  app.post("/api/shutdown", (c) => {
+    setTimeout(() => process.exit(0), 200);
+    return c.json({ status: "shutting_down" });
+  });
   app.route("/api/jobs", jobsApi);
   app.route("/api/events", eventsApi);
   app.route("/api/metrics", metricsApi);
@@ -73,6 +82,10 @@ export function createDashboardApp() {
   app.route("/api/hook-events", hookEventsApi);
   app.route("/api/db", dbApi);
   app.route("/api/orchestrator", orchestratorApi);
+  app.route("/api/queue", queueApi);
+  app.route("/api/triggers", triggersApi);
+  app.route("/api/pulse", pulseApi);
+  app.route("/api/modes", modesApi);
 
   // Serve built UI assets
   app.use("/*", serveStatic({ root: uiDist }));
@@ -111,6 +124,9 @@ export async function startDashboard(port: number = DEFAULT_PORT) {
 
   // Initialize state manager (starts fs.watch + polling)
   const state = getDashboardState();
+
+  // Start pulse loop (10s heartbeat for health, triggers, queue)
+  startPulse(state);
 
   const app = createDashboardApp();
 

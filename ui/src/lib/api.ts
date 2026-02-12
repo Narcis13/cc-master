@@ -9,3 +9,7 @@ export async function fetchMetrics() {
   const res = await fetch(`${BASE}/api/metrics`);
   return res.json();
 }
+
+export async function shutdownDashboard() {
+  await fetch(`${BASE}/api/shutdown`, { method: "POST" });
+}

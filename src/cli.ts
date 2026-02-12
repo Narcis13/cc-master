@@ -34,6 +34,8 @@ import {
   getOrchestratorStatus,
   injectToOrchestrator,
 } from "./orchestrator.ts";
+import { addQueueTask, getQueueTasks, removeQueueTask, addTrigger, getTriggers, removeTrigger, toggleTrigger } from "./dashboard/db.ts";
+import { getModes, activateModeByName, createModeFromCurrent, deleteMode, getModeByName, getActiveMode } from "./orchestrator/modes.ts";
 
 const HELP = `
 CC Agent - Delegate tasks to Claude Code agents (tmux-based)
@@ -60,10 +62,28 @@ Usage:
   cc-agent remove-hooks               Remove installed hooks
   cc-agent health                     Check tmux and claude code availability
 
+  cc-agent queue add "prompt" [--priority N]  Add task to orchestrator queue
+  cc-agent queue list [--status pending]     List queue tasks
+  cc-agent queue remove <id>                 Remove a queue task
+
   cc-agent orchestrator start [options]  Start the orchestrator session
   cc-agent orchestrator stop             Stop the orchestrator
   cc-agent orchestrator status           Show orchestrator status
   cc-agent orchestrator inject "msg"     Inject a message into the orchestrator
+
+  cc-agent trigger add <name> <type> <condition> <action> [opts]  Add a trigger
+  cc-agent trigger list                                          List triggers
+  cc-agent trigger toggle <id>                                   Toggle enabled
+  cc-agent trigger remove <id>                                   Remove a trigger
+
+  cc-agent pulse start                  Start the pulse loop
+  cc-agent pulse stop                   Stop the pulse loop
+  cc-agent pulse status                 Show pulse loop status
+
+  cc-agent mode list                    List available modes
+  cc-agent mode activate <name>         Activate a mode (replaces triggers)
+  cc-agent mode create <name> [opts]    Create a mode [--description "..."] [--from-current]
+  cc-agent mode delete <name>           Delete a mode
 
 Options:
   -r, --reasoning <level>    Reasoning effort: low, medium, high, xhigh (default: xhigh)
@@ -129,6 +149,13 @@ interface Options {
   jobsLimit: number | null;
   jobsAll: boolean;
   markCompleted: boolean;
+  priority: number;
+  statusFilter: string | null;
+  payload: string | null;
+  autonomy: string | null;
+  cooldown: number | null;
+  description: string | null;
+  fromCurrent: boolean;
 }
 
 function stripAnsiCodes(text: string): string {
@@ -163,6 +190,13 @@ function parseArgs(args: string[]): {
     jobsLimit: config.jobsListLimit,
     jobsAll: false,
     markCompleted: false,
+    priority: 0,
+    statusFilter: null,
+    payload: null,
+    autonomy: null,
+    cooldown: null,
+    description: null,
+    fromCurrent: false,
   };
 
   const positional: string[] = [];
@@ -221,6 +255,24 @@ function parseArgs(args: string[]): {
       options.jobsAll = true;
     } else if (arg === "--completed") {
       options.markCompleted = true;
+    } else if (arg === "--priority") {
+      const raw = args[++i];
+      const parsed = Number(raw);
+      options.priority = Number.isFinite(parsed) ? Math.floor(parsed) : 0;
+    } else if (arg === "--status") {
+      options.statusFilter = args[++i] ?? null;
+    } else if (arg === "--payload") {
+      options.payload = args[++i] ?? null;
+    } else if (arg === "--autonomy") {
+      options.autonomy = args[++i] ?? null;
+    } else if (arg === "--cooldown") {
+      const raw = args[++i];
+      const parsed = Number(raw);
+      options.cooldown = Number.isFinite(parsed) ? Math.floor(parsed) : null;
+    } else if (arg === "--description") {
+      options.description = args[++i] ?? null;
+    } else if (arg === "--from-current") {
+      options.fromCurrent = true;
     } else if (!arg.startsWith("-")) {
       if (!command) {
         command = arg;
@@ -799,6 +851,71 @@ async function main() {
         break;
       }
 
+      case "queue": {
+        const subCmd = positional[0];
+        if (!subCmd || subCmd === "help") {
+          console.log("Usage:");
+          console.log('  cc-agent queue add "prompt" [--priority N]');
+          console.log("  cc-agent queue list [--status pending]");
+          console.log("  cc-agent queue remove <id>");
+          break;
+        }
+
+        switch (subCmd) {
+          case "add": {
+            const prompt = positional.slice(1).join(" ");
+            if (!prompt) {
+              console.error("Error: No prompt provided");
+              console.error('Usage: cc-agent queue add "prompt" [--priority N]');
+              process.exit(1);
+            }
+            const id = addQueueTask({ prompt, priority: options.priority });
+            console.log(`Queued task #${id}: ${prompt.slice(0, 60)}${prompt.length > 60 ? "..." : ""}`);
+            if (options.priority > 0) console.log(`Priority: ${options.priority}`);
+            break;
+          }
+          case "list": {
+            const tasks = getQueueTasks(options.statusFilter ?? undefined);
+            if (tasks.length === 0) {
+              console.log(options.statusFilter ? `No ${options.statusFilter} tasks` : "Queue is empty");
+            } else {
+              console.log("ID    PRIORITY  STATUS      PROMPT");
+              console.log("-".repeat(70));
+              for (const t of tasks) {
+                const promptPreview = t.prompt.slice(0, 40) + (t.prompt.length > 40 ? "..." : "");
+                console.log(
+                  `${String(t.id).padEnd(6)}${String(t.priority).padEnd(10)}${t.status.padEnd(12)}${promptPreview}`
+                );
+              }
+            }
+            break;
+          }
+          case "remove": {
+            const idStr = positional[1];
+            if (!idStr) {
+              console.error("Error: No task ID provided");
+              process.exit(1);
+            }
+            const taskId = parseInt(idStr, 10);
+            if (isNaN(taskId)) {
+              console.error(`Invalid task ID: ${idStr}`);
+              process.exit(1);
+            }
+            if (removeQueueTask(taskId)) {
+              console.log(`Removed task #${taskId}`);
+            } else {
+              console.error(`Task #${taskId} not found`);
+              process.exit(1);
+            }
+            break;
+          }
+          default:
+            console.error(`Unknown queue subcommand: ${subCmd}`);
+            process.exit(1);
+        }
+        break;
+      }
+
       case "orchestrator": {
         const subCmd = positional[0];
         if (!subCmd || subCmd === "help") {
@@ -874,6 +991,299 @@ async function main() {
           }
           default:
             console.error(`Unknown orchestrator subcommand: ${subCmd}`);
+            process.exit(1);
+        }
+        break;
+      }
+
+      case "trigger": {
+        const subCmd = positional[0];
+        if (!subCmd || subCmd === "help") {
+          console.log("Usage:");
+          console.log('  cc-agent trigger add <name> <type> <condition> <action> [--payload \'{"prompt":"..."}\'] [--autonomy auto|confirm] [--cooldown 60]');
+          console.log("  cc-agent trigger list");
+          console.log("  cc-agent trigger toggle <id>");
+          console.log("  cc-agent trigger remove <id>");
+          console.log("");
+          console.log("Types: cron, event, threshold");
+          console.log("Actions: inject_prompt, clear_context, start_orchestrator, queue_task, notify");
+          break;
+        }
+
+        switch (subCmd) {
+          case "add": {
+            // trigger add <name> <type> <condition> <action>
+            const [name, type, condition, action] = positional.slice(1);
+            if (!name || !type || !condition || !action) {
+              console.error("Error: name, type, condition, and action are required");
+              console.error('Usage: cc-agent trigger add <name> <type> <condition> <action> [--payload \'...\'] [--autonomy auto|confirm] [--cooldown 60]');
+              process.exit(1);
+            }
+            const validTypes = ["cron", "event", "threshold"];
+            if (!validTypes.includes(type)) {
+              console.error(`Invalid type: ${type}. Must be one of: ${validTypes.join(", ")}`);
+              process.exit(1);
+            }
+            const validActions = ["inject_prompt", "clear_context", "start_orchestrator", "queue_task", "notify"];
+            if (!validActions.includes(action)) {
+              console.error(`Invalid action: ${action}. Must be one of: ${validActions.join(", ")}`);
+              process.exit(1);
+            }
+            try {
+              const id = addTrigger({
+                name,
+                type,
+                condition,
+                action,
+                action_payload: options.payload ?? undefined,
+                autonomy: options.autonomy ?? undefined,
+                cooldown_seconds: options.cooldown ?? undefined,
+              });
+              console.log(`Trigger #${id} "${name}" created`);
+              console.log(`  Type: ${type} | Condition: ${condition}`);
+              console.log(`  Action: ${action} | Autonomy: ${options.autonomy ?? "confirm"}`);
+            } catch (err: any) {
+              if (err.message?.includes("UNIQUE")) {
+                console.error(`Trigger name "${name}" already exists`);
+              } else {
+                console.error(`Failed to create trigger: ${err.message}`);
+              }
+              process.exit(1);
+            }
+            break;
+          }
+          case "list": {
+            const triggers = getTriggers();
+            if (triggers.length === 0) {
+              console.log("No triggers configured");
+            } else {
+              console.log("ID    ENABLED  TYPE        AUTONOMY  COOLDOWN  NAME                  CONDITION");
+              console.log("-".repeat(95));
+              for (const t of triggers) {
+                const enabled = t.enabled ? "yes" : "no";
+                const condPreview = t.condition.slice(0, 20) + (t.condition.length > 20 ? "..." : "");
+                console.log(
+                  `${String(t.id).padEnd(6)}${enabled.padEnd(9)}${t.type.padEnd(12)}${t.autonomy.padEnd(10)}${String(t.cooldown_seconds ?? 60).padEnd(10)}${t.name.padEnd(22)}${condPreview}`
+                );
+              }
+            }
+            break;
+          }
+          case "toggle": {
+            const idStr = positional[1];
+            if (!idStr) {
+              console.error("Error: No trigger ID provided");
+              process.exit(1);
+            }
+            const triggerId = parseInt(idStr, 10);
+            if (isNaN(triggerId)) {
+              console.error(`Invalid trigger ID: ${idStr}`);
+              process.exit(1);
+            }
+            if (toggleTrigger(triggerId)) {
+              console.log(`Trigger #${triggerId} toggled`);
+            } else {
+              console.error(`Trigger #${triggerId} not found`);
+              process.exit(1);
+            }
+            break;
+          }
+          case "remove": {
+            const idStr = positional[1];
+            if (!idStr) {
+              console.error("Error: No trigger ID provided");
+              process.exit(1);
+            }
+            const triggerId = parseInt(idStr, 10);
+            if (isNaN(triggerId)) {
+              console.error(`Invalid trigger ID: ${idStr}`);
+              process.exit(1);
+            }
+            if (removeTrigger(triggerId)) {
+              console.log(`Trigger #${triggerId} removed`);
+            } else {
+              console.error(`Trigger #${triggerId} not found`);
+              process.exit(1);
+            }
+            break;
+          }
+          default:
+            console.error(`Unknown trigger subcommand: ${subCmd}`);
+            process.exit(1);
+        }
+        break;
+      }
+
+      case "pulse": {
+        const subCmd = positional[0];
+        if (!subCmd || subCmd === "help") {
+          console.log("Usage:");
+          console.log("  cc-agent pulse start    Start the pulse loop");
+          console.log("  cc-agent pulse stop     Stop the pulse loop");
+          console.log("  cc-agent pulse status   Show pulse loop status");
+          break;
+        }
+
+        switch (subCmd) {
+          case "start": {
+            try {
+              const res = await fetch(`http://localhost:${DEFAULT_PORT}/api/pulse/start`, { method: "POST" });
+              if (res.ok) {
+                console.log("Pulse started (10s interval)");
+              } else {
+                const data = await res.json();
+                console.error(`Failed to start pulse: ${data.error}`);
+                process.exit(1);
+              }
+            } catch {
+              console.error("Dashboard not running. Start it first: cc-agent dashboard");
+              process.exit(1);
+            }
+            break;
+          }
+          case "stop": {
+            try {
+              const res = await fetch(`http://localhost:${DEFAULT_PORT}/api/pulse/stop`, { method: "POST" });
+              if (res.ok) {
+                console.log("Pulse stopped");
+              } else {
+                const data = await res.json();
+                console.error(`Failed to stop pulse: ${data.error}`);
+                process.exit(1);
+              }
+            } catch {
+              console.error("Dashboard not running. Start it first: cc-agent dashboard");
+              process.exit(1);
+            }
+            break;
+          }
+          case "status": {
+            try {
+              const res = await fetch(`http://localhost:${DEFAULT_PORT}/api/pulse/status`);
+              const status = await res.json();
+              console.log(`Running: ${status.running ? "yes" : "no"}`);
+              if (status.last_tick) console.log(`Last tick: ${status.last_tick}`);
+              if (status.next_tick) console.log(`Next tick: ${status.next_tick}`);
+              console.log(`Orchestrator: ${status.orchestrator_running ? "running" : "stopped"}`);
+              console.log(`Queue depth: ${status.queue_depth}`);
+              console.log(`Active triggers: ${status.active_triggers}`);
+              console.log(`Pending approvals: ${status.pending_approvals}`);
+            } catch {
+              console.log("Running: no (dashboard not reachable)");
+            }
+            break;
+          }
+          default:
+            console.error(`Unknown pulse subcommand: ${subCmd}`);
+            process.exit(1);
+        }
+        break;
+      }
+
+      case "mode": {
+        const subCmd = positional[0];
+        if (!subCmd || subCmd === "help") {
+          console.log("Usage:");
+          console.log("  cc-agent mode list                           List available modes");
+          console.log("  cc-agent mode activate <name>                Activate a mode (replaces triggers)");
+          console.log('  cc-agent mode create <name> [--description "..."] [--from-current]');
+          console.log("  cc-agent mode delete <name>                  Delete a mode");
+          break;
+        }
+
+        switch (subCmd) {
+          case "list": {
+            const modes = getModes();
+            const active = getActiveMode();
+            if (modes.length === 0) {
+              console.log("No modes configured");
+            } else {
+              console.log("NAME            ACTIVE  TRIGGERS  DESCRIPTION");
+              console.log("-".repeat(75));
+              for (const m of modes) {
+                const isActive = m.is_active ? "yes" : "no";
+                let triggerCount = 0;
+                try { triggerCount = JSON.parse(m.trigger_config).length; } catch {}
+                const desc = (m.description ?? "").slice(0, 35) + ((m.description ?? "").length > 35 ? "..." : "");
+                console.log(
+                  `${m.name.padEnd(16)}${isActive.padEnd(8)}${String(triggerCount).padEnd(10)}${desc}`
+                );
+              }
+            }
+            break;
+          }
+          case "activate": {
+            const name = positional[1];
+            if (!name) {
+              console.error("Error: No mode name provided");
+              console.error("Usage: cc-agent mode activate <name>");
+              process.exit(1);
+            }
+            if (activateModeByName(name)) {
+              console.log(`Mode "${name}" activated`);
+              const triggers = getTriggers();
+              console.log(`${triggers.length} trigger(s) installed`);
+            } else {
+              console.error(`Mode "${name}" not found`);
+              process.exit(1);
+            }
+            break;
+          }
+          case "create": {
+            const name = positional[1];
+            if (!name) {
+              console.error("Error: No mode name provided");
+              console.error('Usage: cc-agent mode create <name> [--description "..."] [--from-current]');
+              process.exit(1);
+            }
+            try {
+              let id: number;
+              if (options.fromCurrent) {
+                id = createModeFromCurrent(name, options.description ?? undefined);
+                const currentTriggers = getTriggers();
+                console.log(`Mode "${name}" created from ${currentTriggers.length} current trigger(s)`);
+              } else {
+                // Create an empty mode (triggers can be added via activate + trigger add + save)
+                const { createMode } = await import("./dashboard/db.ts");
+                id = createMode({
+                  name,
+                  description: options.description ?? undefined,
+                  trigger_config: "[]",
+                });
+                console.log(`Mode "${name}" created (empty — use --from-current to snapshot triggers)`);
+              }
+            } catch (err: any) {
+              if (err.message?.includes("UNIQUE")) {
+                console.error(`Mode name "${name}" already exists`);
+              } else {
+                console.error(`Failed to create mode: ${err.message}`);
+              }
+              process.exit(1);
+            }
+            break;
+          }
+          case "delete": {
+            const name = positional[1];
+            if (!name) {
+              console.error("Error: No mode name provided");
+              console.error("Usage: cc-agent mode delete <name>");
+              process.exit(1);
+            }
+            const mode = getModeByName(name);
+            if (!mode) {
+              console.error(`Mode "${name}" not found`);
+              process.exit(1);
+            }
+            if (deleteMode(mode.id)) {
+              console.log(`Mode "${name}" deleted`);
+            } else {
+              console.error(`Failed to delete mode "${name}"`);
+              process.exit(1);
+            }
+            break;
+          }
+          default:
+            console.error(`Unknown mode subcommand: ${subCmd}`);
             process.exit(1);
         }
         break;

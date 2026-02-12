@@ -25,11 +25,21 @@
   font-size: 12px;
 }
 
+.topbar-shutdown {
+  color: var(--status-failed);
+  border-color: var(--status-failed);
+  margin-left: auto;
+}
+
+.topbar-shutdown:hover {
+  background: var(--status-failed);
+  color: #fff;
+}
+
 .connection-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  margin-left: auto;
 }
 
 .connection-dot.connected {
@@ -3655,4 +3665,296 @@ h5.md-heading { font-size: 12px; color: var(--text-secondary); }
   .db-events-timeline .db-table-wrap {
     overflow-x: auto;
   }
+}
+
+/* ===== Orchestrator View ===== */
+
+.orch-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+}
+
+.orch-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.orch-view-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.orch-view-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Orchestrator Panel */
+
+.orch-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.orch-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.orch-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.orch-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orch-idle-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.orch-idle {
+  background: rgba(59, 185, 80, 0.15);
+  color: var(--status-complete);
+}
+
+.orch-busy {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--status-running);
+}
+
+/* Context bar */
+
+.orch-context-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.orch-context-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.orch-context-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.orch-context-fill {
+  height: 100%;
+  background: var(--status-running);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.orch-ctx-warn {
+  background: var(--status-pending);
+}
+
+.orch-ctx-danger {
+  background: var(--status-failed);
+}
+
+.orch-context-pct {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-secondary);
+  min-width: 32px;
+  text-align: right;
+}
+
+.orch-clear-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(210, 153, 34, 0.2);
+  color: var(--status-pending);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* State info */
+
+.orch-state-info {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.orch-state-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.orch-state-label {
+  color: var(--text-secondary);
+  min-width: 48px;
+  flex-shrink: 0;
+}
+
+.orch-state-value {
+  color: var(--text-primary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.orch-agent-id {
+  font-size: 11px;
+  padding: 1px 6px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+/* Terminal wrap */
+
+.orch-terminal-wrap {
+  flex: 1;
+  min-height: 300px;
+}
+
+.orch-terminal-wrap .terminal-panel {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.orch-terminal-wrap .terminal-panel-header {
+  display: none;
+}
+
+.orch-terminal-wrap .terminal-container {
+  height: 100%;
+}
+
+/* Empty state */
+
+.orch-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.orch-empty-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  max-width: 360px;
+}
+
+/* ===== Pulse Indicator ===== */
+
+.pulse-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pulse-dot-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.pulse-dot-btn:hover {
+  border-color: var(--text-secondary);
+}
+
+.pulse-dot-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pulse-active {
+  border-color: rgba(59, 185, 80, 0.4);
+}
+
+.pulse-stopped {
+  border-color: rgba(248, 81, 73, 0.3);
+}
+
+.pulse-dot-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-failed);
+  flex-shrink: 0;
+}
+
+.pulse-dot-icon--active {
+  background: var(--status-complete);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.pulse-label {
+  white-space: nowrap;
+}
+
+.pulse-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulse-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--status-running);
+}
+
+.pulse-badge--warn {
+  background: rgba(210, 153, 34, 0.2);
+  color: var(--status-pending);
 }

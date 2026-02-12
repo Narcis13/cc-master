@@ -15,13 +15,25 @@ import {
 } from "./jobs.ts";
 import { sessionExists, getSessionName } from "./tmux.ts";
 
+export interface CompletedTask {
+  id: number;
+  description: string;
+  result: string;
+  completed_at: string;
+}
+
 export interface OrchestratorState {
+  started_at: string;
+  status: string;
   current_task: string | null;
   active_agents: string[];
-  context_summary: string;
-  queue_position: number;
+  completed_tasks: CompletedTask[];
+  pending_tasks: string[];
+  notes: string;
   last_saved: string;
 }
+
+const MAX_COMPLETED_TASKS = 5;
 
 const ORCH_ID = config.orchJobId;
 
@@ -37,7 +49,8 @@ Your responsibilities:
 1. Process tasks injected by the pulse loop or human operator
 2. Delegate work to specialized worker agents
 3. Monitor worker progress and collect results
-4. Save state before context clears (write to ${config.orchStateFile})
+
+State management is automatic — the pulse loop saves your state for you. You do NOT need to write to any state files. When you finish a task, just say "Task done".
 
 When you receive a SYSTEM message, follow its instructions. When idle, wait for new tasks.`;
 
@@ -169,9 +182,29 @@ function parseContextFromOutput(jobId: string): number | null {
   }
 }
 
-export function saveOrchestratorState(state: OrchestratorState): void {
-  state.last_saved = new Date().toISOString();
-  writeFileSync(config.orchStateFile, JSON.stringify(state, null, 2));
+export function saveOrchestratorState(state: Partial<OrchestratorState>): void {
+  // Merge with existing state so callers can do partial updates
+  const existing = loadOrchestratorState();
+  const merged: OrchestratorState = {
+    started_at: existing?.started_at || new Date().toISOString(),
+    status: "idle",
+    current_task: null,
+    active_agents: [],
+    completed_tasks: [],
+    pending_tasks: [],
+    notes: "",
+    last_saved: new Date().toISOString(),
+    ...existing,
+    ...state,
+    last_saved: new Date().toISOString(),
+  };
+
+  // Auto-trim completed_tasks to last N entries
+  if (merged.completed_tasks.length > MAX_COMPLETED_TASKS) {
+    merged.completed_tasks = merged.completed_tasks.slice(-MAX_COMPLETED_TASKS);
+  }
+
+  writeFileSync(config.orchStateFile, JSON.stringify(merged, null, 2));
 }
 
 export function loadOrchestratorState(): OrchestratorState | null {

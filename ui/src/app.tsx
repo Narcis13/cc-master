@@ -1,6 +1,7 @@
 import { h, Fragment } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { useJobs } from "./hooks/useJobs";
+import { shutdownDashboard } from "./lib/api";
 import { Dashboard } from "./components/Dashboard";
 import { JobDetail } from "./components/JobDetail";
 import { NewJobForm } from "./components/NewJobForm";
@@ -16,6 +17,7 @@ import { JobHistoryBrowser } from "./components/db/JobHistoryBrowser";
 import { JobHistoryDetail } from "./components/db/JobHistoryDetail";
 import { ToolUsageExplorer } from "./components/db/ToolUsageExplorer";
 import { AnalyticsDashboard } from "./components/db/AnalyticsDashboard";
+import { OrchestratorView } from "./components/OrchestratorView";
 
 // Database sub-navigation tab bar
 function DbSubNav({ route }: { route: string }) {
@@ -140,7 +142,8 @@ export function App() {
   const isSplit = route === "#/split";
   const isPipeline = route === "#/pipeline";
   const isDatabase = route.startsWith("#/db");
-  const isHome = !jobMatch && !isTimeline && !isNotifications && !isAnalytics && !isSplit && !isPipeline && !isDatabase;
+  const isOrchestrator = route.startsWith("#/orchestrator");
+  const isHome = !jobMatch && !isTimeline && !isNotifications && !isAnalytics && !isSplit && !isPipeline && !isDatabase && !isOrchestrator;
 
   return (
     <div class="shell">
@@ -167,6 +170,9 @@ export function App() {
           <a href="#/pipeline" class={`topbar-nav-link ${isPipeline ? "active" : ""}`}>
             Pipeline
           </a>
+          <a href="#/orchestrator" class={`topbar-nav-link ${isOrchestrator ? "active" : ""}`}>
+            Orchestrator
+          </a>
           <a href="#/db" class={`topbar-nav-link ${isDatabase ? "active" : ""}`}>
             Database
           </a>
@@ -177,10 +183,23 @@ export function App() {
         <button class="btn btn--primary btn--sm topbar-new" onClick={() => setShowNewJob(true)}>
           + New Agent
         </button>
+        <button
+          class="btn btn--ghost btn--sm topbar-shutdown"
+          title="Stop Dashboard Server"
+          onClick={() => {
+            if (confirm("Shut down the dashboard server?")) {
+              shutdownDashboard();
+            }
+          }}
+        >
+          Exit
+        </button>
         <span class={`connection-dot ${connected ? "connected" : "disconnected"}`} />
       </header>
       <main class="content">
-        {isDatabase ? (
+        {isOrchestrator ? (
+          <OrchestratorView />
+        ) : isDatabase ? (
           <DbLayout route={route} />
         ) : isAnalytics ? (
           <MetricsChart />

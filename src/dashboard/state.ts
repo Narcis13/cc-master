@@ -8,7 +8,7 @@ import { getJobsJson, getJobSession, loadJob, refreshJobStatus, clearJobContext,
 import { mkdirSync, existsSync, statSync } from "fs";
 import { getEventsReader, type HookEvent } from "./events-reader.ts";
 import { recordJobCompletion, recordHookEvent, truncatePreview } from "./db.ts";
-import { getOrchestratorStatus, injectToOrchestrator, ORCH_JOB_ID } from "../orchestrator.ts";
+import { getOrchestratorStatus, injectToOrchestrator, saveOrchestratorState, ORCH_JOB_ID } from "../orchestrator.ts";
 
 export type ContextClearState = "idle" | "warned" | "interrupting" | "clearing" | "resuming";
 
@@ -241,8 +241,9 @@ export class DashboardState extends EventEmitter {
       switch (this.contextClearState) {
         case "idle": {
           if (pct >= WARN_THRESHOLD && now - this.lastContextWarnTime > WARN_COOLDOWN_MS) {
-            // Step 1: Warn — tell orchestrator to save state
-            const msg = `SYSTEM: Context at ${pct}%. Save your current state to ${config.orchStateFile} immediately using the Bash tool (write JSON with current_task, active_agents, context_summary, queue_position fields). This is critical — context will be cleared soon.`;
+            // Step 1: Auto-save state snapshot, then warn orchestrator
+            saveOrchestratorState({ notes: `Context at ${pct}%, auto-saved before clear` });
+            const msg = `SYSTEM: Context at ${pct}%. Briefly summarize what you're currently doing — the system will save your state automatically. Context will be cleared soon.`;
             injectToOrchestrator(msg);
             this.lastContextWarnTime = now;
             this.contextClearState = "warned";
@@ -280,7 +281,7 @@ export class DashboardState extends EventEmitter {
               // Step 4: Resume after 5s (gives /clear time to complete)
               this.resumeTimer = setTimeout(() => {
                 this.contextClearState = "resuming";
-                const resumeMsg = `SYSTEM: Context was cleared. Read your saved state from ${config.orchStateFile} using the Read tool and resume your previous work. The state file contains your current_task, active_agents, context_summary, and queue_position.`;
+                const resumeMsg = `SYSTEM: Context was cleared. Read your saved state from ${config.orchStateFile} using the Read tool and resume your previous work.`;
                 injectToOrchestrator(resumeMsg);
                 console.log("[context-lifecycle] Injected resume prompt after context clear");
                 this.emit("change", {

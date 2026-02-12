@@ -15,12 +15,50 @@ export function getDb(): Database {
     db.exec("PRAGMA journal_mode=WAL");
     db.exec("PRAGMA synchronous=NORMAL");
     initSchema(db);
+    // Seed preset modes on first run (must happen after schema init, uses the module-level db)
+    seedPresetModes();
   }
   return db;
 }
 
 function initSchema(db: Database) {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS orchestrator_triggers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL,
+      condition TEXT NOT NULL,
+      action TEXT NOT NULL,
+      action_payload TEXT,
+      autonomy TEXT NOT NULL DEFAULT 'confirm',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      cooldown_seconds INTEGER DEFAULT 60,
+      last_triggered TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS orchestrator_activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action TEXT NOT NULL,
+      details TEXT,
+      trigger_id INTEGER,
+      queue_task_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS orchestrator_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      prompt TEXT NOT NULL,
+      priority INTEGER DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      metadata TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      started_at TEXT,
+      completed_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_queue_status_priority
+      ON orchestrator_queue(status, priority DESC, created_at ASC);
+
     CREATE TABLE IF NOT EXISTS job_history (
       id TEXT PRIMARY KEY,
       status TEXT NOT NULL,
@@ -86,6 +124,15 @@ function initSchema(db: Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id);
     CREATE INDEX IF NOT EXISTS idx_events_time ON events(timestamp);
+
+    CREATE TABLE IF NOT EXISTS orchestrator_modes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT,
+      trigger_config TEXT NOT NULL,
+      is_active INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
 
     CREATE TABLE IF NOT EXISTS daily_metrics (
       date TEXT PRIMARY KEY,
@@ -885,6 +932,387 @@ export function getAnalytics(range: string = "7d"): AnalyticsResult {
     avg_duration_by_day: avgDuration,
     success_rate_by_day: successRate,
   };
+}
+
+// --- Orchestrator Queue functions ---
+
+export interface QueueTask {
+  id: number;
+  prompt: string;
+  priority: number;
+  status: string;
+  metadata: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export function addQueueTask(opts: { prompt: string; priority?: number; metadata?: Record<string, any> }): number {
+  const db = getDb();
+  const result = db.run(
+    `INSERT INTO orchestrator_queue (prompt, priority, metadata) VALUES (?, ?, ?)`,
+    [opts.prompt, opts.priority ?? 0, opts.metadata ? JSON.stringify(opts.metadata) : null]
+  );
+  return Number(result.lastInsertRowid);
+}
+
+export function getQueueTasks(status?: string): QueueTask[] {
+  const db = getDb();
+  if (status) {
+    return db
+      .query<QueueTask, [string]>(
+        `SELECT * FROM orchestrator_queue WHERE status = ? ORDER BY priority DESC, created_at ASC`
+      )
+      .all(status);
+  }
+  return db
+    .query<QueueTask, []>(
+      `SELECT * FROM orchestrator_queue ORDER BY priority DESC, created_at ASC`
+    )
+    .all();
+}
+
+export function getNextPendingTask(): QueueTask | null {
+  const db = getDb();
+  return db
+    .query<QueueTask, []>(
+      `SELECT * FROM orchestrator_queue WHERE status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1`
+    )
+    .get() ?? null;
+}
+
+export function updateQueueTask(id: number, updates: { status?: string; started_at?: string; completed_at?: string }): boolean {
+  const db = getDb();
+  const sets: string[] = [];
+  const params: any[] = [];
+  if (updates.status !== undefined) { sets.push("status = ?"); params.push(updates.status); }
+  if (updates.started_at !== undefined) { sets.push("started_at = ?"); params.push(updates.started_at); }
+  if (updates.completed_at !== undefined) { sets.push("completed_at = ?"); params.push(updates.completed_at); }
+  if (sets.length === 0) return false;
+  params.push(id);
+  const result = db.run(`UPDATE orchestrator_queue SET ${sets.join(", ")} WHERE id = ?`, params);
+  return result.changes > 0;
+}
+
+export function removeQueueTask(id: number): boolean {
+  const db = getDb();
+  const result = db.run(`DELETE FROM orchestrator_queue WHERE id = ?`, [id]);
+  return result.changes > 0;
+}
+
+export function getQueueDepth(): number {
+  const db = getDb();
+  const row = db.query<{ c: number }, []>(`SELECT COUNT(*) as c FROM orchestrator_queue WHERE status = 'pending'`).get();
+  return (row as any)?.c ?? 0;
+}
+
+// --- Orchestrator Trigger functions ---
+
+export interface TriggerRecord {
+  id: number;
+  name: string;
+  type: string;
+  condition: string;
+  action: string;
+  action_payload: string | null;
+  autonomy: string;
+  enabled: number;
+  cooldown_seconds: number;
+  last_triggered: string | null;
+  created_at: string;
+}
+
+export function addTrigger(opts: {
+  name: string;
+  type: string;
+  condition: string;
+  action: string;
+  action_payload?: string;
+  autonomy?: string;
+  cooldown_seconds?: number;
+}): number {
+  const db = getDb();
+  const result = db.run(
+    `INSERT INTO orchestrator_triggers (name, type, condition, action, action_payload, autonomy, cooldown_seconds)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      opts.name,
+      opts.type,
+      opts.condition,
+      opts.action,
+      opts.action_payload ?? null,
+      opts.autonomy ?? "confirm",
+      opts.cooldown_seconds ?? 60,
+    ]
+  );
+  return Number(result.lastInsertRowid);
+}
+
+export function getTriggers(enabledOnly?: boolean): TriggerRecord[] {
+  const db = getDb();
+  if (enabledOnly) {
+    return db
+      .query<TriggerRecord, []>(
+        `SELECT * FROM orchestrator_triggers WHERE enabled = 1 ORDER BY id ASC`
+      )
+      .all();
+  }
+  return db
+    .query<TriggerRecord, []>(
+      `SELECT * FROM orchestrator_triggers ORDER BY id ASC`
+    )
+    .all();
+}
+
+export function getTriggerById(id: number): TriggerRecord | null {
+  const db = getDb();
+  return db
+    .query<TriggerRecord, [number]>(
+      `SELECT * FROM orchestrator_triggers WHERE id = ?`
+    )
+    .get(id) ?? null;
+}
+
+export function updateTrigger(id: number, updates: Partial<{
+  name: string;
+  type: string;
+  condition: string;
+  action: string;
+  action_payload: string | null;
+  autonomy: string;
+  enabled: number;
+  cooldown_seconds: number;
+  last_triggered: string;
+}>): boolean {
+  const db = getDb();
+  const sets: string[] = [];
+  const params: any[] = [];
+
+  for (const [key, val] of Object.entries(updates)) {
+    if (val !== undefined) {
+      sets.push(`${key} = ?`);
+      params.push(val);
+    }
+  }
+  if (sets.length === 0) return false;
+  params.push(id);
+  const result = db.run(
+    `UPDATE orchestrator_triggers SET ${sets.join(", ")} WHERE id = ?`,
+    params
+  );
+  return result.changes > 0;
+}
+
+export function removeTrigger(id: number): boolean {
+  const db = getDb();
+  const result = db.run(`DELETE FROM orchestrator_triggers WHERE id = ?`, [id]);
+  return result.changes > 0;
+}
+
+export function toggleTrigger(id: number): boolean {
+  const db = getDb();
+  const result = db.run(
+    `UPDATE orchestrator_triggers SET enabled = CASE WHEN enabled = 1 THEN 0 ELSE 1 END WHERE id = ?`,
+    [id]
+  );
+  return result.changes > 0;
+}
+
+export function disableAllTriggers(): void {
+  const db = getDb();
+  db.run(`UPDATE orchestrator_triggers SET enabled = 0`);
+}
+
+export function deleteAllTriggers(): void {
+  const db = getDb();
+  db.run(`DELETE FROM orchestrator_triggers`);
+}
+
+// --- Orchestrator Activity Log ---
+
+export interface ActivityRecord {
+  id: number;
+  action: string;
+  details: string | null;
+  trigger_id: number | null;
+  queue_task_id: number | null;
+  created_at: string;
+}
+
+export function logActivity(opts: {
+  action: string;
+  details?: Record<string, any>;
+  trigger_id?: number;
+  queue_task_id?: number;
+}): void {
+  const db = getDb();
+  db.run(
+    `INSERT INTO orchestrator_activity (action, details, trigger_id, queue_task_id)
+     VALUES (?, ?, ?, ?)`,
+    [
+      opts.action,
+      opts.details ? JSON.stringify(opts.details) : null,
+      opts.trigger_id ?? null,
+      opts.queue_task_id ?? null,
+    ]
+  );
+}
+
+export function getActivityLog(limit: number = 50): ActivityRecord[] {
+  const db = getDb();
+  return db
+    .query<ActivityRecord, [number]>(
+      `SELECT * FROM orchestrator_activity ORDER BY id DESC LIMIT ?`
+    )
+    .all(limit);
+}
+
+// --- Orchestrator Modes ---
+
+export interface ModeRecord {
+  id: number;
+  name: string;
+  description: string | null;
+  trigger_config: string;
+  is_active: number;
+  created_at: string;
+}
+
+export function getModes(): ModeRecord[] {
+  const db = getDb();
+  return db
+    .query<ModeRecord, []>(`SELECT * FROM orchestrator_modes ORDER BY name ASC`)
+    .all();
+}
+
+export function getModeById(id: number): ModeRecord | null {
+  const db = getDb();
+  return db
+    .query<ModeRecord, [number]>(`SELECT * FROM orchestrator_modes WHERE id = ?`)
+    .get(id) ?? null;
+}
+
+export function getModeByName(name: string): ModeRecord | null {
+  const db = getDb();
+  return db
+    .query<ModeRecord, [string]>(`SELECT * FROM orchestrator_modes WHERE name = ?`)
+    .get(name) ?? null;
+}
+
+export function createMode(opts: {
+  name: string;
+  description?: string;
+  trigger_config: string;
+}): number {
+  const db = getDb();
+  const result = db.run(
+    `INSERT INTO orchestrator_modes (name, description, trigger_config) VALUES (?, ?, ?)`,
+    [opts.name, opts.description ?? null, opts.trigger_config]
+  );
+  return Number(result.lastInsertRowid);
+}
+
+export function deleteMode(id: number): boolean {
+  const db = getDb();
+  const result = db.run(`DELETE FROM orchestrator_modes WHERE id = ?`, [id]);
+  return result.changes > 0;
+}
+
+export function getActiveMode(): ModeRecord | null {
+  const db = getDb();
+  return db
+    .query<ModeRecord, []>(`SELECT * FROM orchestrator_modes WHERE is_active = 1 LIMIT 1`)
+    .get() ?? null;
+}
+
+export function activateMode(id: number): boolean {
+  const db = getDb();
+  const mode = getModeById(id);
+  if (!mode) return false;
+
+  const triggers: Array<{
+    name: string;
+    type: string;
+    condition: string;
+    action: string;
+    action_payload?: string;
+    autonomy?: string;
+    cooldown_seconds?: number;
+  }> = JSON.parse(mode.trigger_config);
+
+  // Clear existing triggers and install mode's triggers
+  deleteAllTriggers();
+  for (const t of triggers) {
+    addTrigger({
+      name: t.name,
+      type: t.type,
+      condition: t.condition,
+      action: t.action,
+      action_payload: t.action_payload,
+      autonomy: t.autonomy,
+      cooldown_seconds: t.cooldown_seconds,
+    });
+  }
+
+  // Set this mode as active, deactivate all others
+  db.run(`UPDATE orchestrator_modes SET is_active = 0`);
+  db.run(`UPDATE orchestrator_modes SET is_active = 1 WHERE id = ?`, [id]);
+
+  logActivity({
+    action: "mode_activated",
+    details: { mode_name: mode.name, trigger_count: triggers.length },
+  });
+
+  return true;
+}
+
+export function deactivateAllModes(): void {
+  const db = getDb();
+  db.run(`UPDATE orchestrator_modes SET is_active = 0`);
+}
+
+export function seedPresetModes(): void {
+  const db = getDb();
+  const count = (db.query<{ c: number }, []>(
+    `SELECT COUNT(*) as c FROM orchestrator_modes`
+  ).get() as any)?.c ?? 0;
+
+  if (count > 0) return; // Already seeded
+
+  const presets = [
+    {
+      name: "dev",
+      description: "Development mode: queue check every 15min, health report every 30min",
+      trigger_config: JSON.stringify([
+        { name: "dev-queue-check", type: "cron", condition: "*/15 * * * *", action: "inject_prompt", action_payload: '{"prompt":"Check the queue for pending tasks and process any that are waiting."}', autonomy: "auto", cooldown_seconds: 60 },
+        { name: "dev-health-report", type: "cron", condition: "*/30 * * * *", action: "inject_prompt", action_payload: '{"prompt":"Generate a brief health report: active agents, queue depth, context usage."}', autonomy: "auto", cooldown_seconds: 60 },
+      ]),
+    },
+    {
+      name: "maintenance",
+      description: "Maintenance mode: nightly cleanup at 2am, weekly audit Monday 8am",
+      trigger_config: JSON.stringify([
+        { name: "maint-nightly-cleanup", type: "cron", condition: "0 2 * * *", action: "inject_prompt", action_payload: '{"prompt":"Run nightly maintenance: clean old jobs, check disk usage, verify system health."}', autonomy: "confirm", cooldown_seconds: 3600 },
+        { name: "maint-weekly-audit", type: "cron", condition: "0 8 * * 1", action: "inject_prompt", action_payload: '{"prompt":"Run weekly audit: review completed jobs, summarize costs, identify patterns."}', autonomy: "confirm", cooldown_seconds: 3600 },
+      ]),
+    },
+    {
+      name: "sprint",
+      description: "Sprint mode: aggressive queue processing every 5min, low-capacity alert",
+      trigger_config: JSON.stringify([
+        { name: "sprint-queue-check", type: "cron", condition: "*/5 * * * *", action: "inject_prompt", action_payload: '{"prompt":"Check queue immediately and process all pending tasks with high priority."}', autonomy: "auto", cooldown_seconds: 30 },
+        { name: "sprint-low-capacity", type: "threshold", condition: "active_agents < 2", action: "inject_prompt", action_payload: '{"prompt":"Low agent count detected. Check queue for tasks and spawn more agents if work is available."}', autonomy: "auto", cooldown_seconds: 120 },
+        { name: "sprint-high-queue", type: "threshold", condition: "queue_depth >= 5", action: "notify", action_payload: '{"message":"Queue depth is high (5+). Consider scaling or prioritizing."}', autonomy: "auto", cooldown_seconds: 300 },
+      ]),
+    },
+  ];
+
+  for (const preset of presets) {
+    db.run(
+      `INSERT INTO orchestrator_modes (name, description, trigger_config) VALUES (?, ?, ?)`,
+      [preset.name, preset.description, preset.trigger_config]
+    );
+  }
 }
 
 export function closeDb() {
