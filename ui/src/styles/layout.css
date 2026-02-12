@@ -3693,6 +3693,37 @@ h5.md-heading { font-size: 12px; color: var(--text-secondary); }
   min-height: 0;
 }
 
+.orch-view-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.orch-view-main {
+  min-height: 0;
+}
+
+.orch-view-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+@media (max-width: 1024px) {
+  .orch-view-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(400px, 1fr) auto;
+  }
+
+  .orch-view-sidebar {
+    max-height: 600px;
+  }
+}
+
 /* Orchestrator Panel */
 
 .orch-panel {
@@ -3957,4 +3988,404 @@ h5.md-heading { font-size: 12px; color: var(--text-secondary); }
 .pulse-badge--warn {
   background: rgba(210, 153, 34, 0.2);
   color: var(--status-pending);
+}
+
+/* ===== Config Panels (shared by Queue, Triggers, Modes) ===== */
+
+.config-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.config-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.config-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.config-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.config-filter {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.config-add-form {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-tertiary);
+}
+
+.config-add-form .form-textarea,
+.config-add-form .form-input,
+.config-add-form .form-select {
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.config-add-form .form-textarea {
+  min-height: 48px;
+}
+
+.config-add-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.config-add-row--end {
+  justify-content: flex-end;
+}
+
+.config-add-row--between {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.config-inline-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.config-inline-label--grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-inline-label--full {
+  width: 100%;
+}
+
+.config-input-sm {
+  width: 64px;
+}
+
+.config-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.config-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.config-list {
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+.config-empty {
+  padding: 20px 14px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.config-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+
+.config-item:last-child {
+  border-bottom: none;
+}
+
+.config-item--disabled {
+  opacity: 0.5;
+}
+
+.config-item--active {
+  background: rgba(188, 140, 255, 0.05);
+  border-left: 2px solid var(--accent);
+}
+
+.config-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.config-item-text {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.config-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.config-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.config-tag--action {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--status-running);
+}
+
+.config-tag--auto {
+  background: rgba(59, 185, 80, 0.15);
+  color: var(--status-complete);
+}
+
+.config-tag--confirm {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--status-pending);
+}
+
+.config-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ===== Trigger-specific ===== */
+
+.trigger-toggle {
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.trigger-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.trigger-toggle--on {
+  background: rgba(59, 185, 80, 0.25);
+  border-color: var(--status-complete);
+}
+
+.trigger-toggle--on::after {
+  transform: translateX(12px);
+  background: var(--status-complete);
+}
+
+.trigger-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trigger-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trigger-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.trigger-desc {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.trigger-condition {
+  font-size: 10px;
+  padding: 0 4px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.trigger-arrow {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+/* ===== Mode-specific ===== */
+
+.mode-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mode-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-active-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(188, 140, 255, 0.2);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+}
+
+.mode-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* ===== Approvals Bar ===== */
+
+.approvals-bar {
+  background: rgba(210, 153, 34, 0.08);
+  border: 1px solid rgba(210, 153, 34, 0.25);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.approvals-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(210, 153, 34, 0.15);
+}
+
+.approvals-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-pending);
+  animation: pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.approvals-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--status-pending);
+}
+
+.approvals-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.approval-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(210, 153, 34, 0.1);
+  gap: 12px;
+}
+
+.approval-item:last-child {
+  border-bottom: none;
+}
+
+.approval-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.approval-trigger {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.approval-payload {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
