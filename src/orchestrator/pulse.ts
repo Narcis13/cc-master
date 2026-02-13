@@ -19,6 +19,7 @@ import {
   evaluateEventTriggers,
   getPendingApprovals,
 } from "./triggers.ts";
+import { loadDaemonPrefs } from "../daemon-prefs.ts";
 import {
   getNextPendingTask,
   updateQueueTask,
@@ -71,6 +72,23 @@ function pulseTick(): void {
     const alive = sessionExists(sessionName);
 
     if (!alive) {
+      // Skip respawn if user intentionally stopped the orchestrator
+      const prefs = loadDaemonPrefs();
+      if (!prefs.auto_respawn) {
+        // Emit pulse_tick but don't respawn
+        orchestratorBus.emit("state_event", {
+          type: "pulse_tick",
+          summary: {
+            orchestrator_running: false,
+            queue_depth: getQueueDepth(),
+            active_triggers: getTriggers(true).length,
+            pending_approvals: getPendingApprovals().length,
+            last_tick: new Date(lastTickTime).toISOString(),
+          },
+        });
+        return;
+      }
+
       // Respawn guard: at most once per 60s
       if (Date.now() - lastRespawnTime > RESPAWN_COOLDOWN_MS) {
         console.log("[pulse] Orchestrator session not found, respawning...");

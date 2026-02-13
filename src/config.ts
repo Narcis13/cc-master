@@ -27,6 +27,9 @@ export const config = {
   // Orchestrator
   orchJobId: "orch",
   orchStateFile: `${process.env.HOME}/.cc-agent/orchestrator-state.json`,
+
+  // Daemon preferences (persisted across dashboard restarts)
+  daemonPrefsFile: `${process.env.HOME}/.cc-agent/daemon-prefs.json`,
 };
 
 export type ReasoningEffort = typeof config.reasoningEfforts[number];

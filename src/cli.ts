@@ -36,6 +36,7 @@ import {
 } from "./orchestrator.ts";
 import { addQueueTask, getQueueTasks, removeQueueTask, addTrigger, getTriggers, removeTrigger, toggleTrigger } from "./dashboard/db.ts";
 import { getModes, activateModeByName, createModeFromCurrent, deleteMode, getModeByName, getActiveMode } from "./orchestrator/modes.ts";
+import { saveDaemonPrefs } from "./daemon-prefs.ts";
 
 const HELP = `
 CC Agent - Delegate tasks to Claude Code agents (tmux-based)
@@ -938,6 +939,7 @@ async function main() {
               reasoning: options.reasoning,
             });
             if (result.success) {
+              saveDaemonPrefs({ auto_respawn: true });
               ensureDashboardRunning();
               console.log("Orchestrator started");
               console.log(`tmux session: cc-agent-orch`);
@@ -951,6 +953,7 @@ async function main() {
           case "stop": {
             const result = stopOrchestrator();
             if (result.success) {
+              saveDaemonPrefs({ auto_respawn: false });
               console.log("Orchestrator stopped");
             } else {
               console.error(`Failed to stop orchestrator: ${result.error}`);

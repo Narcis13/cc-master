@@ -18,6 +18,7 @@ import { getDashboardState } from "./state.ts";
 import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
 import { sendToJob } from "../jobs.ts";
 import { startPulse } from "../orchestrator/pulse.ts";
+import { loadDaemonPrefs } from "../daemon-prefs.ts";
 
 export const DEFAULT_PORT = 3131;
 const PIDFILE = path.join(process.env.HOME!, ".cc-agent", "dashboard.pid");
@@ -125,8 +126,13 @@ export async function startDashboard(port: number = DEFAULT_PORT) {
   // Initialize state manager (starts fs.watch + polling)
   const state = getDashboardState();
 
-  // Start pulse loop (10s heartbeat for health, triggers, queue)
-  startPulse(state);
+  // Start pulse loop only if user hasn't explicitly disabled it
+  const prefs = loadDaemonPrefs();
+  if (prefs.pulse_enabled) {
+    startPulse(state);
+  } else {
+    console.log("[pulse] Skipped — was disabled before dashboard shutdown");
+  }
 
   const app = createDashboardApp();
 

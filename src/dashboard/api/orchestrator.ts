@@ -9,6 +9,7 @@ import {
   loadOrchestratorState,
 } from "../../orchestrator.ts";
 import { getDashboardState } from "../state.ts";
+import { saveDaemonPrefs } from "../../daemon-prefs.ts";
 
 const orchestratorApi = new Hono();
 
@@ -28,6 +29,7 @@ orchestratorApi.post("/start", async (c) => {
   if (!result.success) {
     return c.json({ error: result.error }, 400);
   }
+  saveDaemonPrefs({ auto_respawn: true });
   return c.json({ ok: true });
 });
 
@@ -37,6 +39,7 @@ orchestratorApi.post("/stop", (c) => {
   if (!result.success) {
     return c.json({ error: result.error }, 400);
   }
+  saveDaemonPrefs({ auto_respawn: false });
   return c.json({ ok: true });
 });
 
