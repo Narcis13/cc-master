@@ -1024,6 +1024,37 @@ Trigger types: `cron`, `event`, `threshold`
 Actions: `inject_prompt`, `clear_context`, `start_orchestrator`, `queue_task`, `notify`
 Options: `--payload '{"prompt":"..."}'`, `--autonomy auto|confirm`, `--cooldown 60`
 
+#### Trigger Condition Reference
+
+The `<cond>` argument depends on the trigger type:
+
+**Cron** — standard 5-field cron expression: `"*/5 * * * *"`, `"0 9 * * 1-5"`, etc.
+
+**Threshold** — `metric operator value`. Available metrics:
+
+| Metric | Description | Example |
+|--------|-------------|---------|
+| `context_used_pct` | Orchestrator context window usage (0-100) | `context_used_pct>=80` |
+| `queue_depth` | Number of pending tasks in the queue | `queue_depth>=5` |
+| `active_agents` | Count of currently running agent jobs | `active_agents==0` |
+| `idle_seconds` | Seconds since orchestrator log was last modified | `idle_seconds>=300` |
+
+Operators: `>=`, `<=`, `>`, `<`, `==`, `!=`
+
+**Event** — exact match on an SSE event name:
+
+| Event | When it fires |
+|-------|--------------|
+| `job_created` | New agent job started |
+| `job_updated` | Agent job status or output changed |
+| `job_completed` | Agent job finished successfully |
+| `job_failed` | Agent job errored out |
+| `hook_event` | A Claude Code hook fired |
+| `orchestrator_status_change` | Orchestrator started, stopped, clearing, or resuming |
+| `orchestrator_context_warn` | Context usage exceeds warning threshold |
+| `queue_update` | Queue task added, removed, or status changed |
+| `pulse_tick` | Pulse loop heartbeat (every 10s) |
+
 ### Modes
 
 | Command | Description |
