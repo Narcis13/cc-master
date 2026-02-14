@@ -125,7 +125,9 @@ Does STATE.json exist in project root?
            |           FAIL --> Retry (back to EXECUTING with failure context)
            |
            └── "completed"
-                 └── Report final status to user
+                 └── Are artifacts archived?
+                       NO --> Run archive protocol (see Milestone Protocol)
+                       YES --> Report "Milestone archived. Ready for new /cc-master."
 ```
 
 **On resume after context clear:** STATE.json tells you exactly where you are. Read it, check actual job statuses with `cc-agent jobs --json`, reconcile any differences (a worker may have finished while context was clearing), and continue.
@@ -216,6 +218,7 @@ This is the **only phase where you interact with the user**. Ask 3-5 targeted qu
     "consecutive_failures": 0,
     "cognitive_load": "normal"
   },
+  "question_log": [],
   "last_saved": "ISO-8601",
   "recovery_notes": ""
 }
@@ -344,6 +347,20 @@ Requirement: "Fix the broken search feature"
 
 If a requirement needs more than 3 workers, it's too big — decompose further.
 
+### Test-Driven Development
+
+When decomposing tasks, decide whether TDD applies to each worker task:
+
+| Task Type | TDD? | Rationale |
+|-----------|------|-----------|
+| Backend logic, APIs, utilities | **Yes** | Write failing tests first, then implement until green |
+| Data models, validation, parsing | **Yes** | Test edge cases before implementing |
+| UI components, styling, layouts | **No** | Visual verification — no meaningful unit test target |
+| Config, scaffolding, boilerplate | **No** | No testable logic |
+| Integration / glue code | **Case-by-case** | TDD if complex logic; skip if just wiring |
+
+When TDD applies, include a `## Testing Strategy` section in the worker prompt (see Implementation Worker template). The worker writes tests first, watches them fail, then implements until they pass. This catches regressions early and gives verification agents concrete test results to check.
+
 ## 8. Agent Spawning Rules
 
 ### Model/Reasoning/Sandbox Selection
@@ -404,6 +421,13 @@ You are implementing a specific task. Do NOT explore beyond your scope.
 - [ ] [Criterion 1 — specific and testable]
 - [ ] [Criterion 2]
 - [ ] [Criterion 3]
+
+## Testing Strategy (include when TDD applies — see Section 7)
+- Write tests FIRST for the acceptance criteria before implementing
+- Run tests to confirm they fail (red)
+- Implement the minimum code to make tests pass (green)
+- Run full test suite to check for regressions
+- Test file locations: [specific test paths matching project conventions]
 
 ## Constraints
 - Only modify the files listed above unless absolutely necessary
@@ -507,6 +531,26 @@ Periodically step back and reassess the overall strategy. This prevents tunnel v
 5. If changes needed: update STRATEGY.md, recompute `strategy_hash`
 6. **Do NOT stop to ask the user** — make the best call and proceed
 
+### Archive Protocol (Milestone Complete)
+
+When `phase` is `"completed"` and artifacts haven't been archived yet:
+
+1. Create archive directory: `./archive/<ISO-timestamp>/` (e.g., `archive/2026-02-14T12-20-00Z/`)
+2. Move `STRATEGY.md` → `./archive/<timestamp>/STRATEGY.md`
+3. Move `STATE.json` → `./archive/<timestamp>/STATE.json`
+4. Optionally move `CODEBASE_MAP.md` → `./archive/<timestamp>/CODEBASE_MAP.md` (can be regenerated)
+5. Report completion summary to user: requirements completed, requirements blocked, total workers spawned
+6. Project root is now clean — a new `/cc-master` invocation starts fresh discovery
+
+```bash
+# Archive commands (executed via worker or directly)
+mkdir -p ./archive/$(date -u +%Y-%m-%dT%H-%M-%SZ)
+mv STRATEGY.md STATE.json ./archive/<timestamp>/
+# Optionally: mv docs/CODEBASE_MAP.md ./archive/<timestamp>/
+```
+
+**Detection**: On OODA cycle, if `state.phase === "completed"` and `STRATEGY.md` still exists in project root, run archive protocol. If `STRATEGY.md` doesn't exist, the archive already happened — report ready state.
+
 ## 12. Context Management
 
 Your context window is finite. Managing it is a core competency.
@@ -572,6 +616,11 @@ cc-agent trigger add "worker-failed" event "job_failed" inject_prompt \
   --payload '{"prompt":"A worker just failed. Capture its output with cc-agent capture, analyze the failure, update STATE.json, and decide whether to retry or skip."}' \
   --autonomy auto --cooldown 10
 
+# Worker stalled — may be blocked on a skill question
+cc-agent trigger add "worker-stalled" threshold "idle_seconds>=120" inject_prompt \
+  --payload '{"prompt":"A worker may be stalled. Capture last 30 lines from all active workers. Check for question patterns (lines ending with ?, option lists, y/N prompts). If a worker is blocked on a question: analyze the context, decide the answer based on STRATEGY.md and project state, send it via cc-agent send <id> \"answer\", and log the Q&A in STATE.json question_log."}' \
+  --autonomy auto --cooldown 60
+
 # Save as a mode
 cc-agent mode create cc-master --from-current --description "Autonomous project executor with OODA loop"
 ```
@@ -636,6 +685,51 @@ cc-agent health    # Check if tmux and claude are available
 ```
 
 If `cc-agent` itself is broken, report to user — this is the one case where you can't self-recover.
+
+### Worker Blocked on Skill Question
+
+Workers may invoke skills (e.g., brainstorming, TDD prompts) that ask interactive questions. Since workers run non-interactively, these questions stall the worker.
+
+**Detection** (during OBSERVE phase):
+
+1. Capture recent output: `cc-agent capture <workerId> 30`
+2. Pattern-match for question indicators:
+   - Lines ending with `?`
+   - Option lists (`1)`, `2)`, `a)`, `b)`, `- [ ]`)
+   - Confirmation prompts (`(y/N)`, `(Y/n)`, `[yes/no]`)
+   - Selection prompts (`Select`, `Choose`, `Which`, `Pick`)
+   - Skill-specific markers (`AskUserQuestion`, `? `)
+3. If no output change for >2 minutes AND question pattern detected → worker is blocked
+
+**Resolution** (autonomous — cc-master decides):
+
+1. Read the question context from captured output
+2. Determine the answer based on:
+   - STRATEGY.md requirements and constraints
+   - The worker's task prompt (what was it trying to do?)
+   - Project conventions and technical stack
+   - The simplest option that satisfies the requirement
+3. Send the answer: `cc-agent send <workerId> "<answer>"`
+4. Log the exchange in STATE.json:
+   ```json
+   {
+     "question_log": [
+       {
+         "worker_id": "<id>",
+         "requirement": "REQ-00X",
+         "question": "<detected question text>",
+         "answer": "<answer sent>",
+         "reasoning": "<why this answer>",
+         "timestamp": "ISO-8601"
+       }
+     ]
+   }
+   ```
+5. Continue OODA loop — the worker should resume after receiving the answer
+
+**If the answer doesn't unblock** (worker still stalled after 2 more minutes):
+- Try a more explicit answer with additional context
+- If still stuck after second attempt: kill the worker and retry with a prompt that pre-answers the question in the constraints section
 
 ## 15. CLI Quick Reference
 
@@ -709,3 +803,6 @@ These are hard rules. No exceptions.
 8. **ALWAYS reconcile STATE.json against actual job statuses on resume** — trust observed reality over recorded state
 9. **NEVER use Claude subagents (Task tool) for implementation** — only `cc-agent start`
 10. **ALWAYS compute and track strategy_hash** — detect external changes to STRATEGY.md
+11. **ALWAYS archive STRATEGY.md and STATE.json on milestone completion** — clean slate for next milestone
+12. **ALWAYS apply TDD for backend/logic workers** — tests first, implementation second (skip for UI tasks)
+13. **ALWAYS check for stalled workers that may be blocked on questions** — detect, decide, and unblock autonomously via `cc-agent send`
