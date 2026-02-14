@@ -82,9 +82,9 @@ Write the file to the project root with this structure:
     "defaults": {
       "<param_name>": "<default value>"
     },
-    "total_steps": 0,
-    "deterministic_steps": 0,
-    "reasoning_steps": 0
+    "total_steps": "<count>",
+    "deterministic_steps": "<count>",
+    "reasoning_steps": "<count>"
   },
   "params": {
     "<param_name>": {
@@ -193,16 +193,12 @@ For each step, format based on its `execution` type:
 
 **Goal:** <intent>
 **Context from original session:** <reasoning + outcome>
-**Approach:** Analyze the current codebase and determine the best way to achieve this goal.
+**Approach:** Analyze the current codebase and determine the best way to achieve this goal. The original session achieved this by the actions described above, but adapt to the current project's structure.
 ```
 
-### Step 2d: Commit
+### Step 2d: Finalize
 
-Commit both files (`parameterized-workflow.json` and the generated SKILL.md) with a descriptive message:
-
-```
-feat: generate replayable workflow from trace <session.id>
-```
+Tell the user: "Generated files are ready: `parameterized-workflow.json` and `<skill-name>/SKILL.md`. You may want to review and commit them."
 
 ## Rules
 
