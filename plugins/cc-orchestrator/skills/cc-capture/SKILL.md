@@ -41,6 +41,9 @@ After each meaningful decision (not every micro-step), append a step to the `ste
 
 A step = a decision, not a single tool call. One step may contain multiple actions. Group actions by intent. Aim for **5-15 steps per session**, not 50.
 
+**GOOD:** "Understand the routing structure" → 3 Glob/Read actions → 1 step
+**BAD:** Each Glob call is its own separate step
+
 ### Per-Step Checklist
 
 Before recording, answer these four questions:
@@ -132,7 +135,7 @@ When the task is complete:
 
 ```json
 "summary": {
-  "completed": true,
+  "completed": "<ISO 8601 timestamp>",
   "total_steps": 8,
   "deterministic_steps": 5,
   "reasoning_steps": 3,
