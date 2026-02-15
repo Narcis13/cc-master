@@ -74,6 +74,7 @@ export function createSession(options: {
   reasoningEffort: string;
   sandbox: string;
   cwd: string;
+  systemPrompt?: string;
 }): { sessionName: string; success: boolean; error?: string } {
   const sessionName = getSessionName(options.jobId);
   const logFile = `${config.jobsDir}/${options.jobId}.log`;
@@ -96,18 +97,33 @@ export function createSession(options: {
       claudeArgs.push(`--allowedTools`, `"Read,Glob,Grep,LS,WebFetch,WebSearch"`);
     }
 
+    // Append system prompt via CLI flag (avoids tmux multiline paste issues)
+    let sysPromptFile: string | undefined;
+    if (options.systemPrompt) {
+      sysPromptFile = `${config.jobsDir}/${options.jobId}.sysprompt`;
+      fs.writeFileSync(sysPromptFile, options.systemPrompt);
+    }
+
     // Resolve full path to claude binary (aliases aren't available in tmux)
     const claudeBin = resolveClaudePath();
 
-    // Create tmux session with claude running
-    // Use script to capture all output, and keep shell alive after claude exits
-    // This allows us to capture the output even after completion
-    // Create detached session that runs claude and stays open after it exits
-    // Using script to log all terminal output
-    const shellCmd = `script -q "${logFile}" ${claudeBin} ${claudeArgs.join(" ")}; echo "\\n\\n[cc-agent: Session complete. Press Enter to close.]"; read`;
+    // Build a launcher script so shell expansion works inside tmux
+    // (tmux new-session with single-quoted commands won't expand $(...))
+    const launcherFile = `${config.jobsDir}/${options.jobId}.launcher.sh`;
+    const claudeCmd = sysPromptFile
+      ? `${claudeBin} ${claudeArgs.join(" ")} --append-system-prompt "$(cat '${sysPromptFile}')"`
+      : `${claudeBin} ${claudeArgs.join(" ")}`;
+    fs.writeFileSync(launcherFile, [
+      `#!/bin/bash`,
+      `script -q "${logFile}" ${claudeCmd}`,
+      `echo ""`,
+      `echo "[cc-agent: Session complete. Press Enter to close.]"`,
+      `read`,
+    ].join("\n"));
+    fs.chmodSync(launcherFile, 0o755);
 
     execSync(
-      `tmux new-session -d -s "${sessionName}" -c "${options.cwd}" '${shellCmd}'`,
+      `tmux new-session -d -s "${sessionName}" -c "${options.cwd}" '${launcherFile}'`,
       { stdio: "pipe", cwd: options.cwd }
     );
 

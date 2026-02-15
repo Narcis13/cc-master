@@ -314,6 +314,7 @@ export interface StartJobOptions {
   parentSessionId?: string;
   cwd?: string;
   jobId?: string;
+  systemPrompt?: string;
 }
 
 export function startJob(options: StartJobOptions): Job {
@@ -344,6 +345,7 @@ export function startJob(options: StartJobOptions): Job {
     reasoningEffort: job.reasoningEffort,
     sandbox: job.sandbox,
     cwd,
+    systemPrompt: options.systemPrompt,
   });
 
   if (result.success) {
