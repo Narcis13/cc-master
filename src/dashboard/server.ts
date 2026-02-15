@@ -14,6 +14,7 @@ import { queueApi } from "./api/queue.ts";
 import { triggersApi } from "./api/triggers.ts";
 import { pulseApi } from "./api/pulse.ts";
 import { modesApi } from "./api/modes.ts";
+import { ecosystemApi } from "./api/ecosystem.ts";
 import { getDashboardState } from "./state.ts";
 import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
 import { sendToJob } from "../jobs.ts";
@@ -87,6 +88,7 @@ export function createDashboardApp() {
   app.route("/api/triggers", triggersApi);
   app.route("/api/pulse", pulseApi);
   app.route("/api/modes", modesApi);
+  app.route("/api/ecosystem", ecosystemApi);
 
   // Serve built UI assets
   app.use("/*", serveStatic({ root: uiDist }));

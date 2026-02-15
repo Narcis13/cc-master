@@ -19,6 +19,13 @@ import { ToolUsageExplorer } from "./components/db/ToolUsageExplorer";
 import { AnalyticsDashboard } from "./components/db/AnalyticsDashboard";
 import { OrchestratorView } from "./components/OrchestratorView";
 import { ToastContainer } from "./components/Toast";
+import { EcosystemOverview } from "./components/ecosystem/EcosystemOverview";
+import { FileBrowser } from "./components/ecosystem/FileBrowser";
+import { AgentsPanel } from "./components/ecosystem/AgentsPanel";
+import { PlansPanel } from "./components/ecosystem/PlansPanel";
+import { SkillsPanel } from "./components/ecosystem/SkillsPanel";
+import { ProjectsPanel } from "./components/ecosystem/ProjectsPanel";
+import { SettingsPanel } from "./components/ecosystem/SettingsPanel";
 
 // Database sub-navigation tab bar
 function DbSubNav({ route }: { route: string }) {
@@ -74,6 +81,62 @@ function DbLayout({ route }: { route: string }) {
     <div class="db-layout">
       <DbSubNav route={route} />
       <div class="db-content">{content}</div>
+    </div>
+  );
+}
+
+// Ecosystem sub-navigation tab bar
+function EcosystemSubNav({ route }: { route: string }) {
+  const tabs = [
+    { hash: "#/ecosystem", label: "Overview" },
+    { hash: "#/ecosystem/agents", label: "Agents" },
+    { hash: "#/ecosystem/plans", label: "Plans" },
+    { hash: "#/ecosystem/skills", label: "Skills" },
+    { hash: "#/ecosystem/projects", label: "Projects" },
+    { hash: "#/ecosystem/settings", label: "Settings" },
+    { hash: "#/ecosystem/browse", label: "Browse" },
+  ];
+
+  return (
+    <nav class="eco-sub-nav">
+      {tabs.map((tab) => {
+        const isActive =
+          tab.hash === "#/ecosystem"
+            ? route === "#/ecosystem" || route === "#/ecosystem/"
+            : route.startsWith(tab.hash);
+        return (
+          <a key={tab.hash} href={tab.hash} class={`eco-sub-nav-link ${isActive ? "active" : ""}`}>
+            {tab.label}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+// Ecosystem layout wrapper
+function EcosystemLayout({ route }: { route: string }) {
+  let content;
+  if (route.startsWith("#/ecosystem/agents")) {
+    content = <AgentsPanel />;
+  } else if (route.startsWith("#/ecosystem/plans")) {
+    content = <PlansPanel />;
+  } else if (route.startsWith("#/ecosystem/skills")) {
+    content = <SkillsPanel />;
+  } else if (route.startsWith("#/ecosystem/projects")) {
+    content = <ProjectsPanel />;
+  } else if (route.startsWith("#/ecosystem/settings")) {
+    content = <SettingsPanel />;
+  } else if (route.startsWith("#/ecosystem/browse")) {
+    content = <FileBrowser />;
+  } else {
+    content = <EcosystemOverview />;
+  }
+
+  return (
+    <div class="eco-layout">
+      <EcosystemSubNav route={route} />
+      <div class="eco-content">{content}</div>
     </div>
   );
 }
@@ -145,7 +208,8 @@ export function App() {
   const isPipeline = route === "#/pipeline";
   const isDatabase = route.startsWith("#/db");
   const isOrchestrator = route.startsWith("#/orchestrator");
-  const isHome = !jobMatch && !isTimeline && !isNotifications && !isAnalytics && !isSplit && !isPipeline && !isDatabase && !isOrchestrator;
+  const isEcosystem = route.startsWith("#/ecosystem");
+  const isHome = !jobMatch && !isTimeline && !isNotifications && !isAnalytics && !isSplit && !isPipeline && !isDatabase && !isOrchestrator && !isEcosystem;
 
   return (
     <div class="shell">
@@ -178,6 +242,9 @@ export function App() {
           <a href="#/db" class={`topbar-nav-link ${isDatabase ? "active" : ""}`}>
             Database
           </a>
+          <a href="#/ecosystem" class={`topbar-nav-link ${isEcosystem ? "active" : ""}`}>
+            Ecosystem
+          </a>
         </nav>
         <button class="btn btn--ghost btn--sm topbar-palette" onClick={() => setShowPalette(true)} title="Command Palette (Ctrl+K)">
           <kbd class="palette-kbd">Ctrl+K</kbd>
@@ -199,7 +266,9 @@ export function App() {
         <span class={`connection-dot ${connected ? "connected" : "disconnected"}`} />
       </header>
       <main class="content">
-        {isOrchestrator ? (
+        {isEcosystem ? (
+          <EcosystemLayout route={route} />
+        ) : isOrchestrator ? (
           <OrchestratorView orchestratorEventVersion={orchestratorEventVersion} />
         ) : isDatabase ? (
           <DbLayout route={route} />
