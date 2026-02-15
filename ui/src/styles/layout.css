@@ -25,6 +25,19 @@
   font-size: 12px;
 }
 
+.topbar-project {
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
 .topbar-shutdown {
   color: var(--status-failed);
   border-color: var(--status-failed);
@@ -429,6 +442,147 @@
 /* Clickable cards */
 .job-card {
   cursor: pointer;
+}
+
+/* ======= Project Badges ======= */
+.project-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.project-badge--header {
+  font-size: 13px;
+  padding: 2px 10px;
+  border: 1px solid;
+  border-radius: 5px;
+}
+
+/* ======= Project Filter Chips ======= */
+.project-chips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.project-chip {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.project-chip:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.project-chip--active {
+  background: var(--chip-bg, var(--bg-tertiary));
+  color: var(--chip-color, var(--text-primary));
+  border-color: var(--chip-color, var(--accent));
+  font-weight: 600;
+}
+
+.project-current-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-complete);
+  flex-shrink: 0;
+}
+
+/* ======= Project Groups ======= */
+.project-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.project-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.project-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+
+.project-group-header:hover {
+  background: var(--bg-tertiary);
+}
+
+.project-group-chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.project-current-tag {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--status-complete);
+  background: rgba(63, 185, 80, 0.12);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.project-group-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.project-group-stats {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.project-stat {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.project-stat--running {
+  color: var(--status-running);
+}
+
+.project-stat--cost {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.project-stat--tokens {
+  color: var(--text-secondary);
+}
+
+.project-group-jobs {
+  padding: 0 12px 12px;
 }
 
 /* Topbar title as link */

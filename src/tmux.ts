@@ -115,6 +115,7 @@ export function createSession(options: {
       : `${claudeBin} ${claudeArgs.join(" ")}`;
     fs.writeFileSync(launcherFile, [
       `#!/bin/bash`,
+      `unset CLAUDECODE`,
       `script -q "${logFile}" ${claudeCmd}`,
       `echo ""`,
       `echo "[cc-agent: Session complete. Press Enter to close.]"`,
@@ -128,7 +129,8 @@ export function createSession(options: {
     );
 
     // Give claude a moment to initialize
-    spawnSync("sleep", ["1"]);
+    // Claude Code takes several seconds to start (loading system prompt, etc.)
+    spawnSync("sleep", ["3"]);
 
     // Send the prompt (read from file to handle complex prompts)
     // Using send-keys with the prompt content

@@ -2,6 +2,7 @@ import { h } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import type { JobEntry, HookEvent } from "../hooks/useJobs";
 import { formatDuration, formatTokens } from "../lib/format";
+import { getProjectName, getProjectColor, getProjectBg } from "../lib/project";
 
 const STATUS_LABELS: Record<string, string> = {
   running: "Running",
@@ -55,6 +56,17 @@ export function JobCard({ job, activity }: { job: JobEntry; activity?: HookEvent
       </div>
 
       <div class="job-card-meta">
+        <span
+          class="project-badge"
+          style={{
+            color: getProjectColor(getProjectName(job.cwd)),
+            background: getProjectBg(getProjectName(job.cwd)),
+          }}
+          title={job.cwd}
+        >
+          {getProjectName(job.cwd)}
+        </span>
+        <span class="meta-sep">/</span>
         <span>{job.model}</span>
         <span class="meta-sep">/</span>
         <span>{job.reasoning}</span>

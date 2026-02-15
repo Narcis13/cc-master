@@ -17,7 +17,7 @@ import { modesApi } from "./api/modes.ts";
 import { ecosystemApi } from "./api/ecosystem.ts";
 import { getDashboardState } from "./state.ts";
 import { getStreamer, cleanupStreamer } from "./terminal-stream.ts";
-import { sendToJob } from "../jobs.ts";
+import { sendToJob, cleanupOldJobs } from "../jobs.ts";
 import { startPulse } from "../orchestrator/pulse.ts";
 import { loadDaemonPrefs } from "../daemon-prefs.ts";
 
@@ -72,7 +72,7 @@ export function createDashboardApp() {
   const uiDist = path.join(projectRoot, "ui/dist");
 
   // API routes
-  app.get("/api/health", (c) => c.json({ status: "ok" }));
+  app.get("/api/health", (c) => c.json({ status: "ok", cwd: process.cwd() }));
   app.post("/api/shutdown", (c) => {
     setTimeout(() => process.exit(0), 200);
     return c.json({ status: "shutting_down" });
@@ -123,6 +123,12 @@ export async function startDashboard(port: number = DEFAULT_PORT) {
   if (!buildResult) {
     console.error("Failed to build dashboard UI");
     process.exit(1);
+  }
+
+  // Auto-cleanup old jobs (completed/failed older than 7 days)
+  const cleaned = cleanupOldJobs(7);
+  if (cleaned > 0) {
+    console.log(`Auto-cleaned ${cleaned} old jobs (>7 days)`);
   }
 
   // Initialize state manager (starts fs.watch + polling)

@@ -158,6 +158,14 @@ export function App() {
   const [showNewJob, setShowNewJob] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [projectDir, setProjectDir] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((d) => { if (d.cwd) setProjectDir(d.cwd); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const onHashChange = () => setRoute(window.location.hash || "#/");
@@ -216,6 +224,7 @@ export function App() {
       <header class="topbar">
         <a href="#/" class="topbar-title">CC-Agent Dashboard</a>
         <span class="topbar-version">v1.0</span>
+        {projectDir && <span class="topbar-project" title={projectDir}>{projectDir.split("/").pop()}</span>}
         <nav class="topbar-nav">
           <a href="#/" class={`topbar-nav-link ${isHome ? "active" : ""}`}>
             Jobs
@@ -290,7 +299,7 @@ export function App() {
         ) : jobMatch ? (
           <JobDetail jobId={jobMatch[1]} jobs={jobs} hookEvents={hookEvents} />
         ) : (
-          <Dashboard jobs={jobs} metrics={metrics} hookEvents={hookEvents} />
+          <Dashboard jobs={jobs} metrics={metrics} hookEvents={hookEvents} projectDir={projectDir} />
         )}
       </main>
 

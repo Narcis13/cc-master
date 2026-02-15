@@ -3,7 +3,7 @@
 import { Hono } from "hono";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
-import { getJobsJson, getJobSession, loadJob, refreshJobStatus } from "../../jobs.ts";
+import { getJobsJson, getJobSession, loadJob, refreshJobStatus, cleanupOldJobs } from "../../jobs.ts";
 import { parseFullSession } from "../../session-parser.ts";
 import { config } from "../../config.ts";
 import { getDashboardState } from "../state.ts";
@@ -91,6 +91,14 @@ jobsApi.get("/:id/session", (c) => {
     },
     subagents,
   });
+});
+
+// POST /api/jobs/cleanup — remove completed/failed jobs older than N days
+jobsApi.post("/cleanup", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const maxAgeDays = typeof body.maxAgeDays === "number" ? body.maxAgeDays : 7;
+  const cleaned = cleanupOldJobs(maxAgeDays);
+  return c.json({ cleaned, maxAgeDays });
 });
 
 export { jobsApi };
