@@ -521,9 +521,16 @@ export function clearJobContext(jobId: string): { success: boolean; error?: stri
     return { success: false, error: "tmux session no longer exists" };
   }
 
+  const { spawnSync } = require("child_process");
+
   // Interrupt any in-progress turn first — /clear only works at the ❯ prompt.
   // If Claude is mid-turn, keystrokes get queued as pending input.
   sendControl(job.tmuxSession, "Escape");
+
+  // Wait for Claude Code to finish cancelling and re-render the ❯ prompt.
+  // Without this delay, the TUI is still processing the cancellation and
+  // drops early characters — e.g. "❯ lear" instead of "❯ /clear".
+  spawnSync("sleep", ["2"]);
 
   const sent = sendMessage(job.tmuxSession, "/clear");
   if (!sent) {
