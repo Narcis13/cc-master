@@ -71,6 +71,17 @@ export function startOrchestrator(opts?: {
   }
 
   try {
+    // Reset state so stale tasks from previous sessions don't linger
+    saveOrchestratorState({
+      started_at: new Date().toISOString(),
+      status: "idle",
+      current_task: null,
+      active_agents: [],
+      completed_tasks: [],
+      pending_tasks: [],
+      notes: "",
+    });
+
     const job = startJob({
       prompt: "Orchestrator online. Awaiting tasks.",
       systemPrompt: INITIAL_PROMPT,
