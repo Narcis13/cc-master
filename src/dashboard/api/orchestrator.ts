@@ -10,6 +10,7 @@ import {
 } from "../../orchestrator.ts";
 import { getDashboardState } from "../state.ts";
 import { saveDaemonPrefs } from "../../daemon-prefs.ts";
+import { logActivity } from "../db.ts";
 
 const orchestratorApi = new Hono();
 
@@ -30,6 +31,7 @@ orchestratorApi.post("/start", async (c) => {
     return c.json({ error: result.error }, 400);
   }
   saveDaemonPrefs({ auto_respawn: true });
+  logActivity({ action: "orchestrator_started", details: { model: model || "opus" } });
   return c.json({ ok: true });
 });
 
@@ -40,6 +42,7 @@ orchestratorApi.post("/stop", (c) => {
     return c.json({ error: result.error }, 400);
   }
   saveDaemonPrefs({ auto_respawn: false });
+  logActivity({ action: "orchestrator_stopped" });
   return c.json({ ok: true });
 });
 
@@ -63,6 +66,7 @@ orchestratorApi.post("/inject", async (c) => {
   if (!sent) {
     return c.json({ error: "Orchestrator is not running" }, 400);
   }
+  logActivity({ action: "prompt_injected", details: { preview: message.trim().slice(0, 120) } });
   return c.json({ ok: true });
 });
 

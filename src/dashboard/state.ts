@@ -7,7 +7,7 @@ import { config } from "../config.ts";
 import { getJobsJson, getJobSession, loadJob, refreshJobStatus, clearJobContext, sendToJob, sendControlToJob, type JobsJsonEntry, type JobsJsonOutput } from "../jobs.ts";
 import { mkdirSync, existsSync, statSync } from "fs";
 import { getEventsReader, type HookEvent } from "./events-reader.ts";
-import { recordJobCompletion, recordHookEvent, truncatePreview, type QueueTask } from "./db.ts";
+import { recordJobCompletion, recordHookEvent, truncatePreview, logActivity, type QueueTask } from "./db.ts";
 import { getOrchestratorStatus, injectToOrchestrator, saveOrchestratorState, ORCH_JOB_ID } from "../orchestrator.ts";
 import type { PendingApproval } from "../orchestrator/triggers.ts";
 import orchestratorBus from "./event-bus.ts";
@@ -297,6 +297,7 @@ export class DashboardState extends EventEmitter {
             this.resumeTimer = setTimeout(() => {
               clearJobContext(ORCH_JOB_ID);
               this.contextClearState = "clearing";
+              logActivity({ action: "context_cleared", details: { context_pct: pct } });
               console.log("[context-lifecycle] Sent /clear to orchestrator");
               this.emit("change", {
                 type: "orchestrator_status_change",
