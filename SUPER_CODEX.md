@@ -16,7 +16,9 @@ SUPER_CODEX is a specification for a coding system made of:
 
 This system is intentionally designed around the actual strengths and weaknesses of modern coding agents, not around an idealized fantasy of perfect autonomy.
 
-The system is tool-agnostic at the architecture level. It can be implemented in this repository, but the specification is not tied to one vendor, one CLI, or one orchestration UI.
+The system is tool-agnostic at the architecture level. It is not tied to one vendor, one CLI, one orchestration UI, or this repository.
+
+The default assumption is a dedicated SUPER_CODEX implementation repository or folder. Anything in the current `cc-master` tree is reference material only and is not part of the normative design.
 
 ---
 
@@ -46,14 +48,17 @@ Transferred principles:
 - Prefer verification of outcomes over completion theater.
 - Make recovery, crash survival, and resumability first-class.
 
-### 2.3 Existing `cc-master` / `cc-orchestrator` ideas in this repo
+### 2.3 Prior local orchestration experiments
 
 Transferred principles:
 
+- The current `cc-master` repo is inspiration only, not the target implementation surface.
 - A strategic brain should not be overloaded with implementation detail.
 - Worker agents should receive tightly scoped tasks.
 - `STRATEGY.md`-style artifacts are useful, but must evolve into a fuller hierarchy.
-- tmux sessions, hooks, logs, event streams, and persistent job state are already valuable primitives.
+- tmux sessions, hooks, logs, event streams, and persistent job state are valuable primitives.
+
+No file path, plugin, or module in this repository is normative for SUPER_CODEX.
 
 ### 2.4 AI self-introspection
 
@@ -335,6 +340,7 @@ vault/
 
 Notes:
 
+- This layout describes the dedicated SUPER_CODEX project repository, not a retrofit of `cc-master`.
 - The vault is plain Markdown so it remains Git-friendly and Obsidian-compatible if desired.
 - `AGENTS.md` and `CLAUDE.md` should be small router files, not giant manuals.
 - Runtime-specific instructions belong in referenced docs, not in the router itself.
@@ -426,6 +432,8 @@ Minimum run records:
 
 - runtime used
 - agent role
+- branch and worktree used
+- base commit and head commit
 - exact dispatch packet
 - exact prompt or prompt reference
 - exit code / status
@@ -448,6 +456,8 @@ This is the architectural core.
 - file and directory scaffolding
 - dispatch selection
 - context assembly
+- git branch/worktree lifecycle
+- git commit and integration policy
 - token and budget policies
 - runtime selection policies
 - structured parsing of results
@@ -471,7 +481,38 @@ This is the architectural core.
 - summarizing outcomes
 - extracting lessons and patterns
 
-## 9.3 Rule
+## 9.3 Deterministic Git Strategy
+
+Git workflow is part of the control plane, not an agent improvisation problem.
+
+Default branch model:
+
+- protected trunk: `main` or equivalent
+- milestone integration branch: `milestone/M###-<slug>`
+- task execution branch: `task/M###-S##-T##`
+
+Operational rules:
+
+- All task execution happens in an isolated worktree attached to the task branch.
+- Attempt identity lives in `.supercodex/runs/<run-id>/`, not in branch naming.
+- Multiple attempts may reuse the same task branch until the task is accepted, abandoned, or restarted from a fresh base.
+- The deterministic layer creates branches and worktrees, records `base_commit` and `head_commit`, and decides when a task is ready for a canonical commit.
+- Agents may inspect `git status`, `git diff`, and history, but they do not choose branching, merging, rebasing, or history-rewrite strategy.
+
+Integration policy:
+
+- The canonical durable history is one verified task commit integrated onto the milestone branch with a standard message containing the task ID and run ID.
+- Task branch history is disposable; local checkpoint commits may exist, but the long-term source of truth is the verified integration commit plus the run artifacts.
+- Integration into the milestone branch is serialized.
+- Promotion from the milestone branch to protected trunk happens only at explicit slice or milestone convergence points after review and verification.
+
+Drift policy:
+
+- If the milestone branch advances while a task branch is still open, the default response is not an ad hoc agent-driven rebase.
+- The deterministic layer either replays the task onto a fresh task branch from the new milestone tip or marks the task stale and replans it.
+- Force-push and history rewrite are forbidden on shared branches.
+
+## 9.4 Rule
 
 If an `if/else` could handle it reliably, it does not belong in agent reasoning.
 
@@ -1053,10 +1094,11 @@ Policy:
 - schema files
 - non-production migrations prepared locally
 - branch or worktree operations
+- local integration into a milestone branch
 
 Policy:
 
-- autonomous with checkpoints and explicit logging
+- autonomous via the deterministic layer with checkpoints and explicit logging
 
 ### Irreversible
 
@@ -1065,7 +1107,7 @@ Policy:
 - changes with destructive data consequences
 - secret rotation
 - billing or external side-effect actions
-- destructive git history rewrite outside isolated branches
+- destructive git history rewrite outside disposable task branches
 
 Policy:
 
@@ -1114,7 +1156,7 @@ On resume:
 
 1. read current state
 2. read latest continuation packet if present
-3. reconcile with actual code and git status
+3. reconcile with actual code, assigned branch/worktree, and git status
 4. detect drift between planned and actual state
 5. either continue, restart the task, or replan
 
@@ -1175,6 +1217,7 @@ Parallel work requires:
 
 - explicit boundary maps
 - file ownership or lock discipline
+- separate task branches/worktrees from a declared common base commit
 - integration tests prepared in advance
 - a convergence agent or integration phase
 
@@ -1478,6 +1521,7 @@ SUPER_CODEX v1 should not be considered real until all of the following are true
 8. Human interaction happens through local feedback files at boundaries, not constant chat steering.
 9. A failure triggers postmortem and process improvement artifacts.
 10. A completed slice yields summary, review result, and UAT instructions.
+11. Git branches, worktrees, and integration state are deterministic, file-backed, and recoverable.
 
 ---
 
@@ -1493,69 +1537,59 @@ Until project-specific overrides exist, use these defaults:
 - review style: mandatory security + maintainability + correctness
 - roadmap reassessment: after each slice
 - memory audit: every slice
+- git flow: protected trunk -> milestone branch -> disposable task branches with isolated worktrees
 - integration: serial convergence
 
 ---
 
-## 30. Reference Implementation Mapping To This Repository
+## 30. Reference Notes And Greenfield Guidance
 
-This specification is tool-agnostic, but this repository already contains useful primitives for a first implementation.
+This specification is tool-agnostic. The current repository may provide inspiration, but the default assumption is a separate greenfield implementation.
 
-## 30.1 Existing Assets In `cc-master`
+## 30.1 Inspiration Only From `cc-master`
 
-The following parts of the current codebase are already aligned with SUPER_CODEX:
+Useful ideas from the current codebase:
 
-- `src/orchestrator.ts`
-  - can evolve into the conductor shell
-- `src/orchestrator/pulse.ts`
-  - can evolve into the headless dispatch heartbeat
-- `src/jobs.ts`
-  - already models persistent run units and lifecycle
-- `src/tmux.ts`
-  - already provides terminal-backed worker execution
-- `src/dashboard/`
-  - can become visibility and metrics infrastructure
-- `src/dashboard/db.ts`
-  - can persist runs, findings, audits, and skill telemetry
-- `src/dashboard/events-reader.ts`
-  - can ingest run events into a durable stream
-- `plugins/cc-orchestrator/skills/`
-  - can host early skill implementations
+- terminal-backed worker execution can be useful
+- persistent job lifecycle state is useful
+- durable event streams and logs are useful
+- visibility and metrics surfaces are useful
+- skill directories and small router files are useful
 
-## 30.2 Suggested Module Mapping
+Do not treat existing file paths, plugins, or module names here as the desired implementation structure.
 
-Recommended additions:
+## 30.2 Recommended Greenfield Module Groups
 
-- `src/supercodex/state.ts`
-  - derive and persist `.supercodex/state/current.json`
-- `src/supercodex/vault.ts`
-  - scaffold and validate `vault/`
-- `src/supercodex/runtime/`
-  - `claude.ts`
-  - `codex.ts`
-  - `types.ts`
-- `src/supercodex/dispatch.ts`
+For a fresh implementation, prefer module groups shaped around responsibilities rather than around this repo's current layout:
+
+- `supercodex/state/`
+  - current state, queue state, locks, and git state
+- `supercodex/vault/`
+  - scaffolding, validation, and artifact regeneration
+- `supercodex/runtime/`
+  - Claude/Codex adapters, capability probing, normalization
+- `supercodex/dispatch/`
   - next action synthesis and packet assembly
-- `src/supercodex/recovery.ts`
-  - continuation packets and resume logic
-- `src/supercodex/verify.ts`
-  - verification ladder orchestration
-- `src/supercodex/review.ts`
-  - reviewer dispatch and findings merge
-- `src/supercodex/audit.ts`
-  - memory fidelity and postmortem flow
+- `supercodex/git/`
+  - branch/worktree management, commit packaging, convergence
+- `supercodex/verify/`
+  - verification ladder orchestration and reviewer passes
+- `supercodex/recovery/`
+  - continuation packets, resume logic, drift detection
+- `supercodex/audit/`
+  - memory fidelity checks, postmortems, metrics
 
-## 30.3 Recommended Build Order In This Repo
+## 30.3 Recommended Greenfield Build Order
 
-If implemented here, the fastest credible sequence is:
+If implemented as a new project, the fastest credible sequence is:
 
-1. vault and state scaffold
+1. vault, state, and git scaffold
 2. Claude/Codex runtime adapters
 3. next action synthesis loop
 4. task and slice artifact generation
 5. verification and review pipeline
 6. recovery and audits
-7. dashboard and telemetry upgrades
+7. optional dashboard and telemetry upgrades
 
 This sequence maximizes early end-to-end usefulness while keeping the architecture extensible.
 
@@ -1581,6 +1615,15 @@ These are reference examples, not final locked schemas.
   "queue_head": "M001/S03/T02",
   "blocked": false,
   "awaiting_human": false,
+  "git": {
+    "trunk_branch": "main",
+    "milestone_branch": "milestone/M001-auth-foundation",
+    "task_branch": "task/M001-S03-T02",
+    "worktree_path": "/absolute/path/to/project/.supercodex-worktrees/M001-S03-T02",
+    "base_commit": "abc1234",
+    "head_commit": "def5678",
+    "dirty": false
+  },
   "last_transition_at": "2026-03-17T14:22:10Z",
   "last_verified_commit": "abc1234",
   "recovery_ref": ".supercodex/runs/20260317-142210-codex-impl-m001-s03-t02/continue.md",
